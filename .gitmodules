@@ -1,0 +1,6 @@
+[submodule "native/filament"]
+	path = native/filament
+	url = https://github.com/google/filament.git
+[submodule "native/swiftshader"]
+	path = native/swiftshader
+	url = https://github.com/google/swiftshader.git

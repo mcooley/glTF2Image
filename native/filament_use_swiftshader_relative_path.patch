@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7547efa95..1237b85b2 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -671,7 +671,7 @@ if (FILAMENT_USE_SWIFTSHADER)
+     endif()
+     find_library(SWIFTSHADER_VK NAMES vk_swiftshader HINTS "$ENV{SWIFTSHADER_LD_LIBRARY_PATH}")
+     message(STATUS "Found SwiftShader VK library in: ${SWIFTSHADER_VK}.")
+-    add_definitions(-DFILAMENT_VKLIBRARY_PATH=\"${SWIFTSHADER_VK}\")
++    add_definitions(-DFILAMENT_VKLIBRARY_PATH=\"./vk_swiftshader.so\")
+ endif()
+ 
+ # ==================================================================================================
