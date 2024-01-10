@@ -1,13 +1,46 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 7547efa95..1237b85b2 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -671,7 +671,7 @@ if (FILAMENT_USE_SWIFTSHADER)
-     endif()
-     find_library(SWIFTSHADER_VK NAMES vk_swiftshader HINTS "$ENV{SWIFTSHADER_LD_LIBRARY_PATH}")
-     message(STATUS "Found SwiftShader VK library in: ${SWIFTSHADER_VK}.")
--    add_definitions(-DFILAMENT_VKLIBRARY_PATH=\"${SWIFTSHADER_VK}\")
-+    add_definitions(-DFILAMENT_VKLIBRARY_PATH=\"./vk_swiftshader.so\")
- endif()
+diff --git a/libs/bluevk/src/BlueVKLinuxAndroid.cpp b/libs/bluevk/src/BlueVKLinuxAndroid.cpp
+index dbde8d802..157ee9843 100644
+--- a/libs/bluevk/src/BlueVKLinuxAndroid.cpp
++++ b/libs/bluevk/src/BlueVKLinuxAndroid.cpp
+@@ -27,27 +27,7 @@ static void* module = nullptr;
+ // Determines the file path to the Vulkan library and calls dlopen on it.
+ // Returns false on failure.
+ bool loadLibrary() {
+-    const char* path = nullptr;
+-
+-    // For security, consult an environment variable only if Filament is built with this #define
+-    // enabled. Our weekly GitHub releases do not have this enabled.
+-#ifdef FILAMENT_VKLIBRARY_USE_ENV
+-    path = getenv("FILAMENT_VKLIBRARY_PATH");
+-#endif
+-
+-    // If the environment variable is not set, fall back to a config-specified path, which is either
+-    // a custom path (common for SwiftShader), or "libvulkan.so" (common for Android).
+-    if (path == nullptr) {
+-#ifdef FILAMENT_VKLIBRARY_PATH
+-        path = FILAMENT_VKLIBRARY_PATH;
+-#elif defined(__ANDROID__)
+-        path = "libvulkan.so";
+-#elif defined(__linux__)
+-        path = "libvulkan.so.1";
+-#else
+-#error "This file should only be compiled for Android or Linux"
+-#endif
+-    }
++    const char* path = "./vk_swiftshader.so";
  
- # ==================================================================================================
+     module = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+     if (module == nullptr) {
+diff --git a/libs/bluevk/src/BlueVKWindows.cpp b/libs/bluevk/src/BlueVKWindows.cpp
+index b787c742a..cc4c5e5d6 100644
+--- a/libs/bluevk/src/BlueVKWindows.cpp
++++ b/libs/bluevk/src/BlueVKWindows.cpp
+@@ -19,7 +19,7 @@
+ 
+ namespace bluevk {
+ 
+-static const char* VKLIBRARY_PATH = "vulkan-1.dll";
++static const char* VKLIBRARY_PATH = "vk_swiftshader.dll";
+ 
+ static HMODULE library = nullptr;
+ 
