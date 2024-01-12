@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="./../../native/gltf2image/out/win-x64/gltf2image_native.dll" Link="runtimes/win-x64/native/gltf2image_native.dll">
+      <PackagePath>runtimes/win-x64/native</PackagePath>
+    </Content>
+    <Content Include="./../../native/swiftshader/out/win-x64/vk_swiftshader.dll" Link="runtimes/win-x64/native/vk_swiftshader.dll">
+      <PackagePath>runtimes/win-x64/native</PackagePath>
+    </Content>
+    <Content Include="./../../native/gltf2image/out/linux-x64/libgltf2image_native.so" Link="runtimes/linux-x64/native/libgltf2image_native.so">
+      <PackagePath>runtimes/linux-x64/native</PackagePath>
+    </Content>
+    <Content Include="./../../native/swiftshader/out/linux-x64/libvk_swiftshader.so" Link="runtimes/linux-x64/native/libvk_swiftshader.so">
+      <PackagePath>runtimes/linux-x64/native</PackagePath>
+    </Content>
+  </ItemGroup>
+
+</Project>
