@@ -1,0 +1,72 @@
+cmake_minimum_required(VERSION 3.19)
+project(gltf2image_native)
+
+if(MSVC)
+    set(FILAMENT_ROOT ${CMAKE_CURRENT_LIST_DIR}/../filament/out/win-x64/sdk)
+else()
+    set(FILAMENT_ROOT ${CMAKE_CURRENT_LIST_DIR}/../filament/out/linux-x64/sdk)
+endif()
+
+set(FILAMENT_LIBS_DIR ${FILAMENT_ROOT}/lib/x86_64/)
+set(FILAMENT_INCLUDE_DIR ${FILAMENT_ROOT}/include)
+
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+if(NOT MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -stdlib=libc++")
+endif()
+
+add_library(gltf2image_native SHARED
+    GLTFRenderAPI.cpp
+    GLTFRender.cpp
+    WorkQueue.cpp)
+
+target_include_directories(gltf2image_native PRIVATE ${FILAMENT_INCLUDE_DIR})
+
+find_library(FILAMENT_BACKEND backend ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_BLUEVK bluevk ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_DRACODEC dracodec ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_FILABRIDGE filabridge ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_FILAFLAT filaflat ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_FILAMENT filament ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_GEOMETRY geometry ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_GLTFIO_CORE gltfio_core ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_IBL ibl ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_MESHOPTIMIZER meshoptimizer ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_SMOL_V smol-v ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_STB stb ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_UBERARCHIVE uberarchive ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_UBERZLIB uberzlib ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_UTILS utils ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_VKSHADERS vkshaders ${FILAMENT_LIBS_DIR})
+find_library(FILAMENT_ZSTD zstd ${FILAMENT_LIBS_DIR})
+
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_BACKEND})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_BLUEVK})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_DRACODEC})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_FILABRIDGE})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_FILAFLAT})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_FILAMENT})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_GEOMETRY})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_GLTFIO_CORE})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_IBL})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_MESHOPTIMIZER})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_SMOL_V})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_STB})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_UBERARCHIVE})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_UBERZLIB})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_UTILS})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_VKSHADERS})
+target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_ZSTD})
+
+if(WIN32)
+    target_link_libraries(gltf2image_native PRIVATE shlwapi opengl32)
+endif()
+
+if(NOT MSVC)
+    target_link_libraries(gltf2image_native PRIVATE -static-libgcc -static-libstdc++)
+    target_link_options(gltf2image_native PRIVATE "LINKER:--exclude-libs=ALL")
+endif()

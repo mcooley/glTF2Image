@@ -10,15 +10,20 @@
 import os
 import subprocess
 
+if os.name == 'nt':
+    build_variant = 'win-x64'
+else:
+    build_variant = 'linux-x64'
+
 print('Building SwiftShader...')
 swiftshader_dir = os.path.dirname(os.path.realpath(__file__)) + '/swiftshader'
 os.chdir(swiftshader_dir)
 subprocess.run(['git', 'apply', '../swiftshader_no_download_commit_hook.patch'])
-swiftshader_build_dir = swiftshader_dir + '/out'
+swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
 if not os.path.exists(swiftshader_build_dir):
     os.makedirs(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
-subprocess.run(['cmake', '..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
     '-DCMAKE_BUILD_TYPE=Release',
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
@@ -32,11 +37,11 @@ print('Building Filament...')
 filament_dir = os.path.dirname(os.path.realpath(__file__)) + '/filament'
 os.chdir(filament_dir)
 subprocess.run(['git', 'apply', '../filament_use_swiftshader_relative_path.patch'])
-filament_build_dir = filament_dir + '/out'
+filament_build_dir = filament_dir + '/out/' + build_variant
 if not os.path.exists(filament_build_dir):
     os.makedirs(filament_build_dir)
 os.chdir(filament_build_dir)
-subprocess.run(['cmake', '..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
     '-DCMAKE_BUILD_TYPE=Release',
     '-DFILAMENT_SUPPORTS_VULKAN=ON',
@@ -52,4 +57,15 @@ subprocess.run(['ninja'])
 filament_sdk_dir = filament_build_dir + '/sdk'
 print('Installing Filament to ' + filament_sdk_dir)
 subprocess.run(['cmake', '--install', '.', '--prefix', filament_sdk_dir])
-os.environ["FILAMENT_SDK_PATH"] = filament_sdk_dir
+
+print('Building gltf2image-native...')
+gltf2image_dir = os.path.dirname(os.path.realpath(__file__)) + '/gltf2image'
+os.chdir(gltf2image_dir)
+gltf2image_build_dir = gltf2image_dir + '/out/' + build_variant
+if not os.path.exists(gltf2image_build_dir):
+    os.makedirs(gltf2image_build_dir)
+os.chdir(gltf2image_build_dir)
+subprocess.run(['cmake', '../..',
+    '-GNinja',
+    '-DCMAKE_BUILD_TYPE=Release'])
+subprocess.run(['ninja'])
