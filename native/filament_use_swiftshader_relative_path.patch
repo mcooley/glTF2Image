@@ -1,26 +1,97 @@
 diff --git a/libs/bluevk/src/BlueVKLinuxAndroid.cpp b/libs/bluevk/src/BlueVKLinuxAndroid.cpp
-index dbde8d802..9505c80cd 100644
+index dbde8d802..7713bd4e5 100644
 --- a/libs/bluevk/src/BlueVKLinuxAndroid.cpp
 +++ b/libs/bluevk/src/BlueVKLinuxAndroid.cpp
-@@ -27,7 +27,7 @@ static void* module = nullptr;
+@@ -18,40 +18,30 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++#include <utils/Path.h>
+ #include <utils/Log.h>
+ 
+ namespace bluevk {
+ 
+ static void* module = nullptr;
+ 
++static const char* VKLIBRARY_PATH = "libvk_swiftshader.so";
++
  // Determines the file path to the Vulkan library and calls dlopen on it.
  // Returns false on failure.
  bool loadLibrary() {
 -    const char* path = nullptr;
-+    const char* path = "./libvk_swiftshader.so";
+-
+-    // For security, consult an environment variable only if Filament is built with this #define
+-    // enabled. Our weekly GitHub releases do not have this enabled.
+-#ifdef FILAMENT_VKLIBRARY_USE_ENV
+-    path = getenv("FILAMENT_VKLIBRARY_PATH");
+-#endif
+-
+-    // If the environment variable is not set, fall back to a config-specified path, which is either
+-    // a custom path (common for SwiftShader), or "libvulkan.so" (common for Android).
+-    if (path == nullptr) {
+-#ifdef FILAMENT_VKLIBRARY_PATH
+-        path = FILAMENT_VKLIBRARY_PATH;
+-#elif defined(__ANDROID__)
+-        path = "libvulkan.so";
+-#elif defined(__linux__)
+-        path = "libvulkan.so.1";
+-#else
+-#error "This file should only be compiled for Android or Linux"
+-#endif
++
++    Dl_info dl_info;
++    if (dladdr((void*)loadLibrary, &dl_info) == 0) {
++        utils::slog.e << "Failed to get info for current module" << utils::io::endl;
++        return false;
+     }
  
-     // For security, consult an environment variable only if Filament is built with this #define
-     // enabled. Our weekly GitHub releases do not have this enabled.
+-    module = dlopen(path, RTLD_NOW | RTLD_LOCAL);
++    auto swiftshaderFullPath = utils::Path{ dl_info.dli_fname }.getParent().concat(utils::Path{ VKLIBRARY_PATH });
++
++    module = dlopen(swiftshaderFullPath.c_str(), RTLD_NOW | RTLD_LOCAL);
+     if (module == nullptr) {
+-        utils::slog.e << "Unable to load Vulkan from " << path << utils::io::endl;
++        utils::slog.e << "Unable to load Vulkan from " << swiftshaderFullPath << utils::io::endl;
+     }
+     return module != nullptr;
+ }
 diff --git a/libs/bluevk/src/BlueVKWindows.cpp b/libs/bluevk/src/BlueVKWindows.cpp
-index b787c742a..cc4c5e5d6 100644
+index b787c742a..3e96a20f4 100644
 --- a/libs/bluevk/src/BlueVKWindows.cpp
 +++ b/libs/bluevk/src/BlueVKWindows.cpp
-@@ -19,7 +19,7 @@
+@@ -17,14 +17,33 @@
  
+ #include <windows.h>
+ 
++#include <utils/Path.h>
++#include <utils/Log.h>
++
  namespace bluevk {
  
 -static const char* VKLIBRARY_PATH = "vulkan-1.dll";
 +static const char* VKLIBRARY_PATH = "vk_swiftshader.dll";
  
  static HMODULE library = nullptr;
+ 
+ bool loadLibrary() {
+-    library = LoadLibraryA(VKLIBRARY_PATH);
++    HMODULE hCurrentModule = NULL;
++    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
++                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                           reinterpret_cast<LPCSTR>(&loadLibrary), &hCurrentModule) == 0) {
++        utils::slog.e << "Getting current module handle returned error " << GetLastError() << utils::io::endl;
++        return false;
++    }
++
++    char dllPath[MAX_PATH];
++    if (GetModuleFileNameA(hCurrentModule, dllPath, sizeof(dllPath)) == 0) {
++        utils::slog.e << "Getting current module filename returned error " << GetLastError() << utils::io::endl;
++        return false;
++    }
++
++    auto swiftshaderFullPath = utils::Path{ dllPath }.getParent().concat(utils::Path{ VKLIBRARY_PATH });
++
++    library = LoadLibraryA(swiftshaderFullPath.c_str());
+     return library != nullptr;
+ }
  
