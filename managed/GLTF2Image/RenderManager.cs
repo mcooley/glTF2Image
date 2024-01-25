@@ -53,7 +53,8 @@ namespace GLTF2Image
         {
             GCHandle taskCompletionSourceHandle = GCHandle.FromIntPtr(user);
             TaskCompletionSource<byte[]> taskCompletionSource = (TaskCompletionSource<byte[]>)taskCompletionSourceHandle.Target!;
-
+            taskCompletionSourceHandle.Free();
+            
             uint size = 4 * width * height;
             byte[] managedArray = new byte[size];
             Marshal.Copy(data, managedArray, 0, (int)size);
