@@ -15,6 +15,14 @@ def run(command):
     if result.returncode != 0:
         raise Exception('Command exited with nonzero status')
 
+def apply_patch(patch_file):
+    reverse_result = subprocess.run(['git', 'apply', '--ignore-whitespace', '--reverse', '--check', patch_file], stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+    if reverse_result.returncode != 0:
+        print('Applying patch ' + patch_file)
+        run(['git', 'apply', '--ignore-whitespace', patch_file])
+    else:
+        print('Looks like ' + patch_file + ' was already applied, not trying to apply it again')
+
 if os.name == 'nt':
     build_variant = 'win-x64'
 else:
@@ -28,7 +36,7 @@ if build_variant == 'linux-x64':
 print('Building SwiftShader...')
 swiftshader_dir = os.path.dirname(os.path.realpath(__file__)) + '/swiftshader'
 os.chdir(swiftshader_dir)
-run(['git', 'apply', '../swiftshader_no_download_commit_hook.patch'])
+apply_patch('../swiftshader_no_download_commit_hook.patch')
 swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
 if not os.path.exists(swiftshader_build_dir):
     os.makedirs(swiftshader_build_dir)
@@ -46,7 +54,7 @@ os.environ["SWIFTSHADER_LD_LIBRARY_PATH"] = swiftshader_build_dir
 print('Building Filament...')
 filament_dir = os.path.dirname(os.path.realpath(__file__)) + '/filament'
 os.chdir(filament_dir)
-run(['git', 'apply', '../filament_use_swiftshader_relative_path.patch'])
+apply_patch('../filament_use_swiftshader_relative_path.patch')
 filament_build_dir = filament_dir + '/out/' + build_variant
 if not os.path.exists(filament_build_dir):
     os.makedirs(filament_build_dir)
