@@ -1,0 +1,66 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y cmake clang libc++-14-dev libc++abi-14-dev ninja-build
+
+    - name: Run build-native.py
+      run: python native/build-native.py
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-${{ matrix.os }}
+        path: native/gltf2image/out
+
+  package:
+    needs: build
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '7.x'
+
+    - name: Download build artifacts (Windows)
+      uses: actions/download-artifact@v2
+      with:
+        name: build-windows-latest
+        path: native/gltf2image/out
+
+    - name: Download build artifacts (Linux)
+      uses: actions/download-artifact@v2
+      with:
+        name: build-ubuntu-22.04
+        path: native/gltf2image/out
+
+    - name: Build NuGet package
+      run: dotnet build managed/GLTF2Image/GLTF2Image.csproj
+
+    - name: Upload NuGet package
+      uses: actions/upload-artifact@v2
+      with:
+        name: nuget-package
+        path: managed/GLTF2Image/bin/Release/*.nupkg
