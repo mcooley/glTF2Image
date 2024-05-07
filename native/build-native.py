@@ -14,7 +14,7 @@ def apply_patch(patch_file):
     reverse_result = subprocess.run(['git', 'apply', '--ignore-whitespace', '--reverse', '--check', patch_file], stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
     if reverse_result.returncode != 0:
         print('Applying patch ' + patch_file)
-        subprocess.check_output(['git', 'apply', '--ignore-whitespace', patch_file])
+        subprocess.run(['git', 'apply', '--ignore-whitespace', patch_file], check=True)
     else:
         print('Looks like ' + patch_file + ' was already applied, not trying to apply it again')
 
@@ -37,14 +37,14 @@ swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
 if not os.path.exists(swiftshader_build_dir):
     os.makedirs(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
-subprocess.check_output(['cmake', '../..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
     '-DCMAKE_BUILD_TYPE=Release',
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
-    '-DREACTOR_BACKEND=Subzero'])
-subprocess.check_output(['ninja'])
+    '-DREACTOR_BACKEND=Subzero'], check=True)
+subprocess.run(['ninja'], check=True)
 os.environ["SWIFTSHADER_LD_LIBRARY_PATH"] = swiftshader_build_dir
 
 print('Building Filament...')
@@ -55,7 +55,7 @@ filament_build_dir = filament_dir + '/out/' + build_variant
 if not os.path.exists(filament_build_dir):
     os.makedirs(filament_build_dir)
 os.chdir(filament_build_dir)
-subprocess.check_output(['cmake', '../..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
     '-DCMAKE_BUILD_TYPE=Release',
     '-DFILAMENT_SUPPORTS_VULKAN=ON',
@@ -65,12 +65,12 @@ subprocess.check_output(['cmake', '../..',
     '-DFILAMENT_SUPPORTS_XLIB=OFF',
     '-DFILAMENT_SKIP_SAMPLES=ON',
     '-DFILAMENT_SKIP_SDL2=ON',
-    '-DUSE_STATIC_CRT=OFF'])
-subprocess.check_output(['ninja'])
+    '-DUSE_STATIC_CRT=OFF'], check=True)
+subprocess.run(['ninja'], check=True)
 
 filament_sdk_dir = filament_build_dir + '/sdk'
 print('Installing Filament to ' + filament_sdk_dir)
-subprocess.check_output(['cmake', '--install', '.', '--prefix', filament_sdk_dir])
+subprocess.run(['cmake', '--install', '.', '--prefix', filament_sdk_dir], check=True)
 
 print('Building gltf2image-native...')
 gltf2image_dir = os.path.dirname(os.path.realpath(__file__)) + '/gltf2image'
@@ -79,7 +79,7 @@ gltf2image_build_dir = gltf2image_dir + '/out/' + build_variant
 if not os.path.exists(gltf2image_build_dir):
     os.makedirs(gltf2image_build_dir)
 os.chdir(gltf2image_build_dir)
-subprocess.check_output(['cmake', '../..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
-    '-DCMAKE_BUILD_TYPE=Release'])
-subprocess.check_output(['ninja'])
+    '-DCMAKE_BUILD_TYPE=Release'], check=True)
+subprocess.run(['ninja'], check=True)
