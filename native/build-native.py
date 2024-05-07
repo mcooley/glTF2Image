@@ -1,4 +1,4 @@
-# On Ubuntu 20.04, make sure the following are installed:
+# On Ubuntu 22.04, make sure the following are installed:
 # cmake
 # clang
 # libc++-14-dev
