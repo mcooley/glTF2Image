@@ -30,14 +30,7 @@ jobs:
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y cmake clang libc++-14-dev libc++abi-14-dev ninja-build
 
-    - name: Start x64 Native Tools Command Prompt (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-        $vsDevCmd = '"' + (Join-Path $vsPath "Common7\Tools\VsDevCmd.bat") + '" -arch=x64 -host_arch=x64'
-        cmd /k $vsDevCmd
-
-    - name: Run build-native.py
+    - name: native/build-native.py
       run: python native/build-native.py
 
     - name: Upload build artifacts
