@@ -28,11 +28,7 @@ if os.name == 'nt':
 else:
     build_variant = 'linux-x64'
 
-if build_variant == 'win-x64':
-    print('Using MSVC...')
-    os.environ["CC"] = 'cl'
-    os.environ["CXX"] = 'cl'
-else:
+if build_variant == 'linux-x64':
     print('Using Clang...')
     os.environ["CC"] = '/usr/bin/clang'
     os.environ["CXX"] = '/usr/bin/clang++'
