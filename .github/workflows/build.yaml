@@ -26,11 +26,15 @@ jobs:
       if: runner.os == 'Windows'
       run: choco install ninja
 
+    - name: Configure MSVC build environment (Windows)
+      uses: ilammy/msvc-dev-cmd@v1.13.0
+      if: runner.os == 'Windows'
+
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y cmake clang libc++-14-dev libc++abi-14-dev ninja-build
 
-    - name: native/build-native.py
+    - name: Run native/build-native.py
       run: python native/build-native.py
 
     - name: Upload build artifacts

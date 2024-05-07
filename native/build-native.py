@@ -23,17 +23,7 @@ if os.name == 'nt':
 else:
     build_variant = 'linux-x64'
 
-if build_variant == 'win-x64':
-    vswhere_path = os.path.join(os.environ["ProgramFiles(x86)"], "Microsoft Visual Studio", "Installer", "vswhere.exe")
-    vs_path = subprocess.check_output([vswhere_path, "-latest", "-property", "installationPath"]).decode().strip()
-    with open(os.path.join(vs_path, "VC", "Auxiliary", "Build", "Microsoft.VCToolsVersion.default.txt"), 'r') as vctools_version_file:
-        vctools_version = vctools_version_file.read().strip()
-    vctools_path = os.path.join(vs_path, "VC", "Tools", "MSVC", vctools_version, "bin", "HostX64", "x64")
-    print('Using MSVC from ' + vctools_path + '...')
-    cl_path = os.path.join(vctools_path, "cl.exe")
-    os.environ["CC"] = cl_path
-    os.environ["CXX"] = cl_path
-else:
+if build_variant == 'linux-x64':
     print('Using Clang...')
     os.environ["CC"] = '/usr/bin/clang'
     os.environ["CXX"] = '/usr/bin/clang++'
