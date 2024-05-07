@@ -14,7 +14,9 @@ jobs:
         os: [windows-latest, ubuntu-22.04]
     steps:
     - uses: actions/checkout@v2
-
+      with:
+        submodules: 'true'
+  
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
