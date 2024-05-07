@@ -36,7 +36,8 @@ if build_variant == 'linux-x64':
 print('Building SwiftShader...')
 swiftshader_dir = os.path.dirname(os.path.realpath(__file__)) + '/swiftshader'
 os.chdir(swiftshader_dir)
-apply_patch('../swiftshader_no_download_commit_hook.patch')
+apply_patch('../swiftshader_patches/0001-no-download-commit-hook.patch')
+apply_patch('../swiftshader_patches/0002-static-link-c-libraries.patch')
 swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
 if not os.path.exists(swiftshader_build_dir):
     os.makedirs(swiftshader_build_dir)
@@ -54,7 +55,7 @@ os.environ["SWIFTSHADER_LD_LIBRARY_PATH"] = swiftshader_build_dir
 print('Building Filament...')
 filament_dir = os.path.dirname(os.path.realpath(__file__)) + '/filament'
 os.chdir(filament_dir)
-apply_patch('../filament_use_swiftshader_relative_path.patch')
+apply_patch('../filament_patches/0001-use-swiftshader-relative-path.patch')
 filament_build_dir = filament_dir + '/out/' + build_variant
 if not os.path.exists(filament_build_dir):
     os.makedirs(filament_build_dir)

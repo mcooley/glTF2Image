@@ -1,0 +1,20 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d12cb7f97..aa1316f79 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -472,6 +472,12 @@ else()
+         )
+     endif()
+ 
++    # Statically link C++ runtime libraries
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
++    link_libraries("-static-libgcc -static-libstdc++")
++    link_libraries(libc++.a)
++    link_libraries(libc++abi.a)
++
+     if(ARCH STREQUAL "x86")
+         set_cpp_flag("-m32")
+         set_cpp_flag("-msse2")
+-- 
+2.34.1
+
