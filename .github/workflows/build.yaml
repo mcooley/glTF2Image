@@ -60,7 +60,14 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         pattern: build-*
-        path: native/
+        path: tmp-build-artifacts/
+
+    - name: Copy native build artifacts to original locations
+      run: |
+        cp -r tmp-build-artifacts/windows-latest/swiftshader/out native/swiftshader/out
+        cp -r tmp-build-artifacts/ubuntu-22.04/swiftshader/out native/swiftshader/out
+        cp -r tmp-build-artifacts/windows-latest/filament/out native/filament/out
+        cp -r tmp-build-artifacts/ubuntu-22.04/filament/out native/filament/out
 
     - name: Build NuGet package
       run: dotnet build managed/GLTF2Image/GLTF2Image.csproj
