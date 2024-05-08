@@ -7,21 +7,28 @@
 
 # On Windows, run from "x64 Native Tools Command Prompt for VS 2022"
 
+import glob
 import os
+import shutil
 import subprocess
-
-def run(command):
-    result = subprocess.run(command)
-    if result.returncode != 0:
-        raise Exception('Command exited with nonzero status')
 
 def apply_patch(patch_file):
     reverse_result = subprocess.run(['git', 'apply', '--ignore-whitespace', '--reverse', '--check', patch_file], stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
     if reverse_result.returncode != 0:
         print('Applying patch ' + patch_file)
-        run(['git', 'apply', '--ignore-whitespace', patch_file])
+        subprocess.run(['git', 'apply', '--ignore-whitespace', patch_file], check=True)
     else:
         print('Looks like ' + patch_file + ' was already applied, not trying to apply it again')
+
+def copy_matching_files(source_glob, target_dir):
+    file_list = glob.glob(source_glob)
+    for file_path in file_list:
+        if os.path.isfile(file_path):
+           shutil.copy(file_path, target_dir)
+
+def ensure_directory_exists(directory_path):
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
 
 if os.name == 'nt':
     build_variant = 'win-x64'
@@ -33,34 +40,36 @@ if build_variant == 'linux-x64':
     os.environ["CC"] = '/usr/bin/clang'
     os.environ["CXX"] = '/usr/bin/clang++'
 
+native_dir = os.path.dirname(os.path.realpath(__file__))
+native_out_dir = native_dir + '/out/' + build_variant
+ensure_directory_exists(native_out_dir)
+
 print('Building SwiftShader...')
-swiftshader_dir = os.path.dirname(os.path.realpath(__file__)) + '/swiftshader'
+swiftshader_dir = native_dir + '/swiftshader'
 os.chdir(swiftshader_dir)
 apply_patch('../swiftshader_patches/0001-no-download-commit-hook.patch')
 apply_patch('../swiftshader_patches/0002-static-link-c-libraries.patch')
 swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
-if not os.path.exists(swiftshader_build_dir):
-    os.makedirs(swiftshader_build_dir)
+ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
-run(['cmake', '../..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
     '-DCMAKE_BUILD_TYPE=Release',
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
-    '-DREACTOR_BACKEND=Subzero'])
-run(['ninja'])
-os.environ["SWIFTSHADER_LD_LIBRARY_PATH"] = swiftshader_build_dir
+    '-DREACTOR_BACKEND=Subzero'], check=True)
+subprocess.run(['ninja'], check=True)
+copy_matching_files(swiftshader_build_dir + '/*vk_swiftshader.*', native_out_dir)
 
 print('Building Filament...')
-filament_dir = os.path.dirname(os.path.realpath(__file__)) + '/filament'
+filament_dir = native_dir + '/filament'
 os.chdir(filament_dir)
 apply_patch('../filament_patches/0001-use-swiftshader-relative-path.patch')
 filament_build_dir = filament_dir + '/out/' + build_variant
-if not os.path.exists(filament_build_dir):
-    os.makedirs(filament_build_dir)
+ensure_directory_exists(filament_build_dir)
 os.chdir(filament_build_dir)
-run(['cmake', '../..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
     '-DCMAKE_BUILD_TYPE=Release',
     '-DFILAMENT_SUPPORTS_VULKAN=ON',
@@ -70,21 +79,21 @@ run(['cmake', '../..',
     '-DFILAMENT_SUPPORTS_XLIB=OFF',
     '-DFILAMENT_SKIP_SAMPLES=ON',
     '-DFILAMENT_SKIP_SDL2=ON',
-    '-DUSE_STATIC_CRT=OFF'])
-run(['ninja'])
+    '-DUSE_STATIC_CRT=OFF'], check=True)
+subprocess.run(['ninja'], check=True)
 
 filament_sdk_dir = filament_build_dir + '/sdk'
 print('Installing Filament to ' + filament_sdk_dir)
-run(['cmake', '--install', '.', '--prefix', filament_sdk_dir])
+subprocess.run(['cmake', '--install', '.', '--prefix', filament_sdk_dir], check=True)
 
 print('Building gltf2image-native...')
-gltf2image_dir = os.path.dirname(os.path.realpath(__file__)) + '/gltf2image'
+gltf2image_dir = native_dir + '/gltf2image'
 os.chdir(gltf2image_dir)
 gltf2image_build_dir = gltf2image_dir + '/out/' + build_variant
-if not os.path.exists(gltf2image_build_dir):
-    os.makedirs(gltf2image_build_dir)
+ensure_directory_exists(gltf2image_build_dir)
 os.chdir(gltf2image_build_dir)
-run(['cmake', '../..',
+subprocess.run(['cmake', '../..',
     '-GNinja',
-    '-DCMAKE_BUILD_TYPE=Release'])
-run(['ninja'])
+    '-DCMAKE_BUILD_TYPE=Release'], check=True)
+subprocess.run(['ninja'], check=True)
+copy_matching_files(gltf2image_build_dir + '/*gltf2image_native.*', native_out_dir)
