@@ -68,7 +68,7 @@ jobs:
         path: native/out
 
     - name: Build NuGet package
-      run: dotnet build managed/GLTF2Image/GLTF2Image.csproj
+      run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj
 
     - name: Upload NuGet package
       uses: actions/upload-artifact@v4
