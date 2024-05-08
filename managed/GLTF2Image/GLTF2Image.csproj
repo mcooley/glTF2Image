@@ -8,19 +8,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="./../../native/gltf2image/out/win-x64/gltf2image_native.dll">
+    <Content Include="./../../native/out/win-x64/gltf2image_native.dll">
       <PackagePath>runtimes/win-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="./../../native/swiftshader/out/win-x64/vk_swiftshader.dll">
+    <Content Include="./../../native/out/win-x64/vk_swiftshader.dll">
       <PackagePath>runtimes/win-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="./../../native/gltf2image/out/linux-x64/libgltf2image_native.so">
+    <Content Include="./../../native/out/linux-x64/libgltf2image_native.so">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="./../../native/swiftshader/out/linux-x64/libvk_swiftshader.so">
+    <Content Include="./../../native/out/linux-x64/libvk_swiftshader.so">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -42,8 +42,7 @@ jobs:
       with:
         name: build-${{ matrix.os }}
         path: |
-          native/swiftshader/out
-          native/gltf2image/out
+          native/out
 
   package:
     needs: build
@@ -56,18 +55,17 @@ jobs:
       with:
         dotnet-version: '7.x'
 
-    - name: Download build artifacts
+    - name: Download build artifacts (windows-latest)
       uses: actions/download-artifact@v4
       with:
-        pattern: build-*
-        path: tmp-build-artifacts/
+        name: build-windows-latest
+        path: native/out
 
-    - name: Copy native build artifacts to original locations
-      run: |
-        cp -r tmp-build-artifacts/windows-latest/swiftshader/out native/swiftshader/out
-        cp -r tmp-build-artifacts/ubuntu-22.04/swiftshader/out native/swiftshader/out
-        cp -r tmp-build-artifacts/windows-latest/filament/out native/filament/out
-        cp -r tmp-build-artifacts/ubuntu-22.04/filament/out native/filament/out
+    - name: Download build artifacts (ubuntu-22.04)
+      uses: actions/download-artifact@v4
+      with:
+        name: build-ubuntu-22.04
+        path: native/out
 
     - name: Build NuGet package
       run: dotnet build managed/GLTF2Image/GLTF2Image.csproj
