@@ -41,7 +41,7 @@ if build_variant == 'linux-x64':
     os.environ["CXX"] = '/usr/bin/clang++'
 
 native_dir = os.path.dirname(os.path.realpath(__file__))
-native_out_dir = native_dir + '/out'
+native_out_dir = native_dir + '/out/' + build_variant
 ensure_directory_exists(native_out_dir)
 
 print('Building SwiftShader...')
