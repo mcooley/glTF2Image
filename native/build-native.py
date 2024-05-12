@@ -54,12 +54,17 @@ ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
 subprocess.run(['cmake', '../..',
     '-GNinja',
-    '-DCMAKE_BUILD_TYPE=Release',
+    '-DCMAKE_BUILD_TYPE=RelWithDebInfo',
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
     '-DREACTOR_BACKEND=Subzero'], check=True)
 subprocess.run(['ninja'], check=True)
+if build_variant == 'linux-x64':
+    print('Moving debug symbols into .dbg file...')
+    subprocess.run(['objcopy', '--only-keep-debug', 'libvk_swiftshader.so', 'libvk_swiftshader.dbg'], check=True)
+    subprocess.run(['objcopy', '--strip-debug', 'libvk_swiftshader.so'], check=True)
+    subprocess.run(['objcopy', '--add-gnu-debuglink=libvk_swiftshader.dbg', 'libvk_swiftshader.so'], check=True)
 copy_matching_files(swiftshader_build_dir + '/*vk_swiftshader.*', native_out_dir)
 
 print('Building Filament...')
