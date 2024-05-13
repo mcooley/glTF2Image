@@ -30,6 +30,14 @@ def ensure_directory_exists(directory_path):
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
+def split_debug_symbols(binary_path):
+    dbg_path = binary_path[:-3] + '.dbg'
+    if os.path.exists(dbg_path):
+        os.remove(dbg_path)
+    subprocess.run(['objcopy', '--only-keep-debug', binary_path, dbg_path], check=True)
+    subprocess.run(['objcopy', '--strip-debug', binary_path], check=True)
+    subprocess.run(['objcopy', '--add-gnu-debuglink=' + dbg_path, binary_path], check=True)
+
 if os.name == 'nt':
     build_variant = 'win-x64'
 else:
@@ -61,10 +69,7 @@ subprocess.run(['cmake', '../..',
     '-DREACTOR_BACKEND=Subzero'], check=True)
 subprocess.run(['ninja'], check=True)
 if build_variant == 'linux-x64':
-    print('Moving debug symbols into .dbg file...')
-    subprocess.run(['objcopy', '--only-keep-debug', 'libvk_swiftshader.so', 'libvk_swiftshader.dbg'], check=True)
-    subprocess.run(['objcopy', '--strip-debug', 'libvk_swiftshader.so'], check=True)
-    subprocess.run(['objcopy', '--add-gnu-debuglink=libvk_swiftshader.dbg', 'libvk_swiftshader.so'], check=True)
+    split_debug_symbols('libvk_swiftshader.so')
 copy_matching_files(swiftshader_build_dir + '/*vk_swiftshader.*', native_out_dir)
 
 print('Building Filament...')
@@ -76,7 +81,7 @@ ensure_directory_exists(filament_build_dir)
 os.chdir(filament_build_dir)
 subprocess.run(['cmake', '../..',
     '-GNinja',
-    '-DCMAKE_BUILD_TYPE=Release',
+    '-DCMAKE_BUILD_TYPE=RelWithDebInfo',
     '-DFILAMENT_SUPPORTS_VULKAN=ON',
     '-DFILAMENT_SUPPORTS_OPENGL=OFF',
     '-DFILAMENT_SUPPORTS_METAL=OFF',
@@ -99,6 +104,8 @@ ensure_directory_exists(gltf2image_build_dir)
 os.chdir(gltf2image_build_dir)
 subprocess.run(['cmake', '../..',
     '-GNinja',
-    '-DCMAKE_BUILD_TYPE=Release'], check=True)
+    '-DCMAKE_BUILD_TYPE=RelWithDebInfo'], check=True)
 subprocess.run(['ninja'], check=True)
+if build_variant == 'linux-x64':
+    split_debug_symbols('libgltf2image_native.so')
 copy_matching_files(gltf2image_build_dir + '/*gltf2image_native.*', native_out_dir)
