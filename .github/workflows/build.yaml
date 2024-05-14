@@ -24,6 +24,11 @@ jobs:
       with:
         python-version: '3.x'
 
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.x'
+
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'
       run: choco install ninja
@@ -45,6 +50,9 @@ jobs:
         name: build-${{ matrix.os }}
         path: |
           native/out
+
+    - name: Run GLTF2Image.Tests
+      run: dotnet test -c Release managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
 
   package:
     needs: build
@@ -70,7 +78,7 @@ jobs:
         path: native/out
 
     - name: Build NuGet package
-      run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj /p:Version=${{ github.event_name == 'release' && github.event.release.tag_name || '0.0.0' }}
+      run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj /p:Version=${{ github.event_name == 'release' && github.event.release.tag_name || '0.0.0' }} /p:GLTF2ImageRequireAllPlatforms=true
 
     - name: Upload NuGet package
       uses: actions/upload-artifact@v4
