@@ -18,7 +18,7 @@ namespace GLTF2Image
             Dispose();
         }
 
-        public GLTFAsset LoadGLTFAsset(byte[] data)
+        public GLTFAsset LoadGLTFAsset(ReadOnlySpan<byte> data)
         {
             nint assetHandle;
             unsafe
