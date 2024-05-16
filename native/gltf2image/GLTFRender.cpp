@@ -198,6 +198,10 @@ RenderManager::~RenderManager() {
 
 gltfio::FilamentAsset* RenderManager::loadGLTFAsset(uint8_t* data, size_t size) {
     gltfio::FilamentAsset* asset = mAssetLoader->createAsset(data, static_cast<uint32_t>(size));
+    if (!asset) {
+        return nullptr;
+    }
+
     mResourceLoader->loadResources(asset);
     asset->releaseSourceData();
     return asset;

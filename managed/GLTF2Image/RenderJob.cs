@@ -20,14 +20,14 @@ namespace GLTF2Image
 
         public void AddAsset(GLTFAsset asset)
         {
-            NativeMethods.addAsset(_handle, asset._handle);
+            NativeMethods.ThrowIfNativeApiFailed(NativeMethods.addAsset(_handle, asset._handle));
         }
 
         public void Dispose()
         {
             if (_handle != 0)
             {
-                NativeMethods.destroyJob(_renderManager._handle, _handle);
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyJob(_renderManager._handle, _handle));
                 _handle = 0;
                 GC.SuppressFinalize(this);
             }

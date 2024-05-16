@@ -10,7 +10,7 @@ namespace GLTF2Image
 
         public RenderManager()
         {
-            _handle = NativeMethods.createRenderManager();
+            NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createRenderManager(out _handle));
         }
 
         ~RenderManager()
@@ -25,7 +25,7 @@ namespace GLTF2Image
             {
                 fixed (byte* pData = data)
                 {
-                    assetHandle = NativeMethods.loadGLTFAsset(_handle, pData, (uint)data.Length);
+                    NativeMethods.ThrowIfNativeApiFailed(NativeMethods.loadGLTFAsset(_handle, pData, (uint)data.Length, out assetHandle));
                 }
             }
             return new GLTFAsset(this, assetHandle);
@@ -33,7 +33,8 @@ namespace GLTF2Image
 
         public RenderJob CreateJob(uint width, uint height)
         {
-            nint jobHandle = NativeMethods.createJob(_handle, width, height);
+            nint jobHandle;
+            NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createJob(_handle, width, height, out jobHandle));
             return new RenderJob(this, jobHandle);
         }
 
@@ -43,7 +44,7 @@ namespace GLTF2Image
             GCHandle completionSourceHandle = GCHandle.Alloc(taskCompletionSource);
             unsafe
             {
-                NativeMethods.renderJob(_handle, job._handle, &RenderJobCallback, GCHandle.ToIntPtr(completionSourceHandle));
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.renderJob(_handle, job._handle, &RenderJobCallback, GCHandle.ToIntPtr(completionSourceHandle)));
             }
             return taskCompletionSource.Task;
         }
@@ -67,7 +68,7 @@ namespace GLTF2Image
         {
             if (_handle != 0)
             {
-                NativeMethods.destroyRenderManager(_handle);
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyRenderManager(_handle));
                 _handle = 0;
                 GC.SuppressFinalize(this);
             }

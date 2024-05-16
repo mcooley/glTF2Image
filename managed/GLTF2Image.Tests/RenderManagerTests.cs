@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -8,6 +9,19 @@ namespace GLTF2Image.Tests
 {
     public class RenderManagerTests
     {
+        [Fact]
+        public void LoadGLTFAsset_InvalidData_ThrowsException()
+        {
+            /* using */ var rm = new RenderManager();
+            GC.SuppressFinalize(rm); // TODO work around Filament bug destroying engine
+
+            Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Array.Empty<byte>()));
+            Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"not json")));
+
+            // TODO this needs to be fixed in Filament
+            // Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"{ ""invalid"": ""format"" }")));
+        }
+
         [Fact]
         public async Task RenderTestTriangle_PixelColorIsRed()
         {

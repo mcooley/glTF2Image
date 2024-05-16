@@ -22,7 +22,7 @@ namespace GLTF2Image
         {
             if (_handle != 0)
             {
-                NativeMethods.destroyGLTFAsset(_renderManager._handle, _handle);
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_renderManager._handle, _handle));
                 _handle = 0;
                 GC.SuppressFinalize(this);
             }

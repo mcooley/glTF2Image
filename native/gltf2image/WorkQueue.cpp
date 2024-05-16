@@ -14,12 +14,21 @@ void WorkQueue::addWorkItemAndWait(std::function<void()> workItem) {
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mWorkItems.push([workItem, &promise] {
-            workItem();
-            promise.set_value();
+            try
+            {
+                workItem();
+                promise.set_value();
+            }
+            catch (...)
+            {
+                promise.set_exception(std::current_exception());
+            }
+
             });
         mCondition.notify_one();
     }
     future.wait();
+    future.get();
 }
 
 void WorkQueue::processWorkItems() {

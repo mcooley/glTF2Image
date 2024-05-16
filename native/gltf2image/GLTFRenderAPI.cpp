@@ -61,57 +61,140 @@ struct RenderInterface
 #define API_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
-API_EXPORT void* createRenderManager() {
-	RenderInterface* pRenderInterface = new RenderInterface();
-	return reinterpret_cast<void*>(pRenderInterface);
+enum class ApiResult : uint32_t
+{
+	Success = 0,
+	UnknownError = 1,
+	InvalidScene_CouldNotLoadAsset = 2,
+};
+
+API_EXPORT ApiResult createRenderManager(void** renderManager) {
+	try
+	{
+		RenderInterface* pRenderInterface = new RenderInterface();
+		*renderManager = reinterpret_cast<void*>(pRenderInterface);
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
 
-API_EXPORT void destroyRenderManager(void* renderManager) {
-	RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-	delete pRenderInterface;
+API_EXPORT ApiResult destroyRenderManager(void* renderManager) {
+	try
+	{
+		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		delete pRenderInterface;
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
 
-API_EXPORT void* loadGLTFAsset(void* renderManager, uint8_t* data, size_t size) {
-	RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-	filament::gltfio::FilamentAsset* pAsset = pRenderInterface->loadGLTFAsset(data, size);
-	return reinterpret_cast<void*>(pAsset);
+API_EXPORT ApiResult loadGLTFAsset(void* renderManager, uint8_t* data, size_t size, void** gltfAsset) {
+	try
+	{
+		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		filament::gltfio::FilamentAsset* pAsset = pRenderInterface->loadGLTFAsset(data, size);
+		if (!pAsset) {
+			return ApiResult::InvalidScene_CouldNotLoadAsset;
+		}
+
+		*gltfAsset = reinterpret_cast<void*>(pAsset);
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
 
-API_EXPORT void destroyGLTFAsset(void* renderManager, void* gltfAsset) {
-	RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-	filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
-	pRenderInterface->destroyGLTFAsset(pAsset);
+API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
+	try
+	{
+		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
+		pRenderInterface->destroyGLTFAsset(pAsset);
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
 
-API_EXPORT void* createJob(void* renderManager, uint32_t width, uint32_t height) {
-	RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-	RenderJob* pJob = pRenderInterface->createJob(width, height);
-	return reinterpret_cast<void*>(pJob);
+API_EXPORT ApiResult createJob(void* renderManager, uint32_t width, uint32_t height, void** job) {
+	try
+	{
+		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		RenderJob* pJob = pRenderInterface->createJob(width, height);
+		*job = reinterpret_cast<void*>(pJob);
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
 
-API_EXPORT void destroyJob(void* renderManager, void* job) {
-	RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-	RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
-	pRenderInterface->destroyJob(pJob);
+API_EXPORT ApiResult destroyJob(void* renderManager, void* job) {
+	try
+	{
+		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
+		pRenderInterface->destroyJob(pJob);
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
 
-API_EXPORT void addAsset(void* job, void* gltfAsset) {
-	RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
-	filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
-	pJob->addAsset(pAsset);
+API_EXPORT ApiResult addAsset(void* job, void* gltfAsset) {
+	try
+	{
+		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
+		filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
+		pJob->addAsset(pAsset);
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
 
 typedef void (*RenderJobCallback)(uint8_t* buffer, uint32_t width, uint32_t height, void* user);
 
-API_EXPORT void renderJob(void* renderManager, void* job, RenderJobCallback callback, void* user) {
-	RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
+API_EXPORT ApiResult renderJob(void* renderManager, void* job, RenderJobCallback callback, void* user) {
+	try
+	{
+		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
 
-	RenderResult* pResult = new RenderResult(pJob->getWidth(), pJob->getHeight());
-	pResult->setCallback([callback, pResult, user](uint8_t* buffer) {
-		callback(buffer, pResult->getWidth(), pResult->getHeight(), user);
-		delete pResult;
-		});
+		RenderResult* pResult = new RenderResult(pJob->getWidth(), pJob->getHeight());
+		pResult->setCallback([callback, pResult, user](uint8_t* buffer) {
+			callback(buffer, pResult->getWidth(), pResult->getHeight(), user);
+			delete pResult;
+			});
 
-	RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-	pRenderInterface->render(pJob, pResult);
+		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		pRenderInterface->render(pJob, pResult);
+	}
+	catch (...)
+	{
+		return ApiResult::UnknownError;
+	}
+
+	return ApiResult::Success;
 }
