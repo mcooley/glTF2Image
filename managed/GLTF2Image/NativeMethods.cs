@@ -28,27 +28,31 @@ namespace GLTF2Image
         public static extern uint addAsset(nint job, nint gltfAsset);
 
         [DllImport("gltf2image_native")]
-        public static unsafe extern uint renderJob(nint renderManager, nint job, delegate* unmanaged<IntPtr, uint, uint, IntPtr, void> callback, IntPtr user);
+        public static unsafe extern uint renderJob(nint renderManager, nint job, delegate* unmanaged<uint, IntPtr, uint, uint, IntPtr, void> callback, IntPtr user);
 
         public static void ThrowIfNativeApiFailed(uint nativeApiResult)
         {
             if (nativeApiResult != 0)
             {
-                ThrowNativeApiException(nativeApiResult);
+                throw GetNativeApiException(nativeApiResult);
             }
         }
 
-        private static void ThrowNativeApiException(uint nativeApiResult)
+        public static Exception GetNativeApiException(uint nativeApiResult)
         {
             switch (nativeApiResult)
             {
                 case 1: // UnknownError
-                    throw new Exception("Unknown error in gltf2image_native");
+                    return new Exception("Unknown error in gltf2image_native");
                 case 2: // InvalidScene_CouldNotLoadAsset
-                    throw new InvalidSceneException("Could not load asset");
+                    return new InvalidSceneException("Could not load asset");
+                case 3: // InvalidScene_NoCamerasFound
+                    return new InvalidSceneException("No cameras were found");
+                case 4: // InvalidScene_TooManyCameras
+                    return new InvalidSceneException("Multiple cameras were found. The scene must have exactly one camera");
                 default:
                     Debug.Fail("ApiResult was not handled");
-                    throw new Exception("Unknown error in gltf2image_native");
+                    return new Exception("Unknown error in gltf2image_native");
             }
         }
     }

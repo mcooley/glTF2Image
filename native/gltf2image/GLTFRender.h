@@ -26,6 +26,9 @@ namespace filament
     }
 }
 
+struct NoCamerasFoundException {};
+struct TooManyCamerasException {};
+
 struct RenderJob
 {
     RenderJob(filament::Engine* engine, uint32_t width, uint32_t height);
@@ -55,18 +58,20 @@ struct RenderResult
 {
     RenderResult(uint32_t width, uint32_t height);
 
-    void setCallback(std::function<void(uint8_t*)> callback);
+    void setCallback(std::function<void(std::exception_ptr, uint8_t*)> callback);
 
     uint32_t getWidth();
     uint32_t getHeight();
 
     filament::backend::PixelBufferDescriptor createPixelBuffer();
+    void reportException(std::exception_ptr exception);
 
 private:
     uint32_t mWidth;
     uint32_t mHeight;
     std::vector<uint8_t> mBuffer;
-    std::function<void(uint8_t*)> mCallback = nullptr;
+    std::function<void(std::exception_ptr, uint8_t*)> mCallback = nullptr;
+    std::exception_ptr mException;
 
     void onBufferReady(uint8_t* buffer);
 };
@@ -82,7 +87,7 @@ struct RenderManager
     RenderJob* createJob(uint32_t width, uint32_t height);
     void destroyJob(RenderJob* job);
 
-    void render(RenderJob* job, RenderResult* result);
+    void render(RenderJob* job, RenderResult* result) noexcept;
 
 private:
     filament::Engine* mEngine = nullptr;

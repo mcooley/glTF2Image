@@ -50,18 +50,26 @@ namespace GLTF2Image
         }
 
         [UnmanagedCallersOnly]
-        public static void RenderJobCallback(IntPtr data, uint width, uint height, IntPtr user)
+        public static void RenderJobCallback(uint nativeApiResult, IntPtr data, uint width, uint height, IntPtr user)
         {
             GCHandle taskCompletionSourceHandle = GCHandle.FromIntPtr(user);
             TaskCompletionSource<byte[]> taskCompletionSource = (TaskCompletionSource<byte[]>)taskCompletionSourceHandle.Target!;
             taskCompletionSourceHandle.Free();
-            
-            uint size = 4 * width * height;
-            byte[] managedArray = new byte[size];
-            Marshal.Copy(data, managedArray, 0, (int)size);
 
-            // Resume on a threadpool thread.
-            Task.Run(() => taskCompletionSource.SetResult(managedArray));
+            if (nativeApiResult != 0)
+            {
+                // Resume on a threadpool thread.
+                Task.Run(() => taskCompletionSource.SetException(NativeMethods.GetNativeApiException(nativeApiResult)));
+            }
+            else
+            {
+                uint size = 4 * width * height;
+                byte[] managedArray = new byte[size];
+                Marshal.Copy(data, managedArray, 0, (int)size);
+
+                // Resume on a threadpool thread.
+                Task.Run(() => taskCompletionSource.SetResult(managedArray));
+            }
         }
 
         public void Dispose()

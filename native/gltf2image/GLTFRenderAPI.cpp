@@ -66,39 +66,52 @@ enum class ApiResult : uint32_t
 	Success = 0,
 	UnknownError = 1,
 	InvalidScene_CouldNotLoadAsset = 2,
+	InvalidScene_NoCamerasFound = 3,
+	InvalidScene_TooManyCameras = 4,
 };
 
+ApiResult apiResultFromException(std::exception_ptr exception)
+{
+	try {
+		std::rethrow_exception(exception);
+	}
+	catch (NoCamerasFoundException) {
+		return ApiResult::InvalidScene_NoCamerasFound;
+	}
+	catch (TooManyCamerasException) {
+		return ApiResult::InvalidScene_TooManyCameras;
+	}
+	catch (...) {
+		return ApiResult::UnknownError;
+	}
+}
+
 API_EXPORT ApiResult createRenderManager(void** renderManager) {
-	try
-	{
+	try {
 		RenderInterface* pRenderInterface = new RenderInterface();
 		*renderManager = reinterpret_cast<void*>(pRenderInterface);
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;
 }
 
 API_EXPORT ApiResult destroyRenderManager(void* renderManager) {
-	try
-	{
+	try {
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
 		delete pRenderInterface;
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;
 }
 
 API_EXPORT ApiResult loadGLTFAsset(void* renderManager, uint8_t* data, size_t size, void** gltfAsset) {
-	try
-	{
+	try {
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
 		filament::gltfio::FilamentAsset* pAsset = pRenderInterface->loadGLTFAsset(data, size);
 		if (!pAsset) {
@@ -107,93 +120,89 @@ API_EXPORT ApiResult loadGLTFAsset(void* renderManager, uint8_t* data, size_t si
 
 		*gltfAsset = reinterpret_cast<void*>(pAsset);
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;
 }
 
 API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
-	try
-	{
+	try {
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
 		filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
 		pRenderInterface->destroyGLTFAsset(pAsset);
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;
 }
 
 API_EXPORT ApiResult createJob(void* renderManager, uint32_t width, uint32_t height, void** job) {
-	try
-	{
+	try {
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
 		RenderJob* pJob = pRenderInterface->createJob(width, height);
 		*job = reinterpret_cast<void*>(pJob);
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;
 }
 
 API_EXPORT ApiResult destroyJob(void* renderManager, void* job) {
-	try
-	{
+	try {
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
 		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
 		pRenderInterface->destroyJob(pJob);
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;
 }
 
 API_EXPORT ApiResult addAsset(void* job, void* gltfAsset) {
-	try
-	{
+	try {
 		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
 		filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
 		pJob->addAsset(pAsset);
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;
 }
 
-typedef void (*RenderJobCallback)(uint8_t* buffer, uint32_t width, uint32_t height, void* user);
+typedef void (*RenderJobCallback)(ApiResult apiResult, uint8_t* buffer, uint32_t width, uint32_t height, void* user);
 
 API_EXPORT ApiResult renderJob(void* renderManager, void* job, RenderJobCallback callback, void* user) {
-	try
-	{
+	try {
 		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
 
 		RenderResult* pResult = new RenderResult(pJob->getWidth(), pJob->getHeight());
-		pResult->setCallback([callback, pResult, user](uint8_t* buffer) {
-			callback(buffer, pResult->getWidth(), pResult->getHeight(), user);
+		pResult->setCallback([callback, pResult, user](std::exception_ptr exception, uint8_t* buffer) {
+			if (exception) {
+				ApiResult result = apiResultFromException(exception);
+				callback(result, nullptr, 0, 0, user);
+			}
+			else {
+				callback(ApiResult::Success, buffer, pResult->getWidth(), pResult->getHeight(), user);
+			}
+
 			delete pResult;
 			});
 
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
 		pRenderInterface->render(pJob, pResult);
 	}
-	catch (...)
-	{
-		return ApiResult::UnknownError;
+	catch (...) {
+		return apiResultFromException(std::current_exception());
 	}
 
 	return ApiResult::Success;

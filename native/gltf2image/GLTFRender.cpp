@@ -93,7 +93,7 @@ View* RenderJob::createView() {
 
         size_t cameraEntityCount = asset->getCameraEntityCount();
         if ((cameraEntityCount > 0 && cameraEntity) || cameraEntityCount > 1) {
-            throw std::exception(); // There must be exactly one camera defined per render.
+            throw TooManyCamerasException(); // There must be exactly one camera defined per render.
         }
         else if (cameraEntityCount == 1) {
             cameraEntity = asset->getCameraEntities()[0];
@@ -101,7 +101,7 @@ View* RenderJob::createView() {
     }
 
     if (!cameraEntity) {
-        throw std::exception(); // There must be exactly one camera defined per render.
+        throw NoCamerasFoundException(); // There must be exactly one camera defined per render.
     }
 
     filament::Camera* camera = mEngine->getCameraComponent(cameraEntity);
@@ -127,7 +127,7 @@ RenderResult::RenderResult(uint32_t width, uint32_t height)
     , mHeight(height) {
 }
 
-void RenderResult::setCallback(std::function<void(uint8_t*)> callback) {
+void RenderResult::setCallback(std::function<void(std::exception_ptr, uint8_t*)> callback) {
     mCallback = callback;
 }
 
@@ -160,9 +160,15 @@ backend::PixelBufferDescriptor RenderResult::createPixelBuffer() {
     return bufferDescriptor;
 }
 
+void RenderResult::reportException(std::exception_ptr exception) {
+    if (mCallback) {
+        mCallback(exception, nullptr);
+    }
+}
+
 void RenderResult::onBufferReady(uint8_t* buffer) {
     if (mCallback) {
-        mCallback(buffer);
+        mCallback(nullptr, buffer);
     }
 }
 
@@ -219,12 +225,22 @@ void RenderManager::destroyJob(RenderJob* job) {
     delete job;
 }
 
-void RenderManager::render(RenderJob* job, RenderResult* result) {
-    View* view = job->createView();
+void RenderManager::render(RenderJob* job, RenderResult* result) noexcept {
+    try {
+        View* view = job->createView();
 
-    mRenderer->renderStandaloneView(view);
-    mRenderer->readPixels(view->getRenderTarget(), 0, 0, job->getWidth(), job->getHeight(), std::move(result->createPixelBuffer()));
-    mEngine->flush();
+        mRenderer->renderStandaloneView(view);
+        mRenderer->readPixels(view->getRenderTarget(), 0, 0, job->getWidth(), job->getHeight(), std::move(result->createPixelBuffer()));
+        mEngine->flush();
+    }
+    catch (...) {
+        result->reportException(std::current_exception());
+    }
 
-    job->destroyView();
+    try {
+        job->destroyView();
+    }
+    catch (...) {
+        result->reportException(std::current_exception());
+    }
 }

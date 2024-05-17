@@ -23,6 +23,35 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
+        public async Task RenderJobAsync_NoCamerasFound_ThrowsException()
+        {
+            var rm = new RenderManager();
+            using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+
+            using var renderJob = rm.CreateJob(100, 100);
+            renderJob.AddAsset(redTriangleUnlit);
+
+            await Assert.ThrowsAsync<InvalidSceneException>(async () => await rm.RenderJobAsync(renderJob));
+        }
+
+        [Fact]
+        public async Task RenderJobAsync_MultipleCamerasFound_ThrowsException()
+        {
+            /* using */ var rm = new RenderManager();
+            GC.SuppressFinalize(rm); // TODO work around bug destroying engine
+            using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            using var orthographicCamera1 = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+            using var orthographicCamera2 = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+
+            using var renderJob = rm.CreateJob(100, 100);
+            renderJob.AddAsset(redTriangleUnlit);
+            renderJob.AddAsset(orthographicCamera1);
+            renderJob.AddAsset(orthographicCamera2);
+
+            await Assert.ThrowsAsync<InvalidSceneException>(async () => await rm.RenderJobAsync(renderJob));
+        }
+
+        [Fact]
         public async Task RenderTestTriangle_PixelColorIsRed()
         {
             using var rm = new RenderManager();
