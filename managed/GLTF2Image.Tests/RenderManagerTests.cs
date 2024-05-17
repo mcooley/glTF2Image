@@ -12,20 +12,19 @@ namespace GLTF2Image.Tests
         [Fact]
         public void LoadGLTFAsset_InvalidData_ThrowsException()
         {
-            /* using */ var rm = new RenderManager();
-            GC.SuppressFinalize(rm); // TODO work around Filament bug destroying engine
+            using var rm = new RenderManager();
 
             Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Array.Empty<byte>()));
             Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"not json")));
 
-            // TODO this needs to be fixed in Filament
+            // TODO enable this once https://github.com/google/filament/issues/7868 is fixed
             // Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"{ ""invalid"": ""format"" }")));
         }
 
         [Fact]
         public async Task RenderJobAsync_NoCamerasFound_ThrowsException()
         {
-            var rm = new RenderManager();
+            using var rm = new RenderManager();
             using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
 
             using var renderJob = rm.CreateJob(100, 100);
@@ -37,8 +36,7 @@ namespace GLTF2Image.Tests
         [Fact]
         public async Task RenderJobAsync_MultipleCamerasFound_ThrowsException()
         {
-            /* using */ var rm = new RenderManager();
-            GC.SuppressFinalize(rm); // TODO work around bug destroying engine
+            using var rm = new RenderManager();
             using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
             using var orthographicCamera1 = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
             using var orthographicCamera2 = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
