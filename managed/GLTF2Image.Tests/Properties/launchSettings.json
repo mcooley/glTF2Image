@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "GLTF2Image.Tests": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
