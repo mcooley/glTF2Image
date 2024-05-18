@@ -23,7 +23,7 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
-        public async Task RenderJobAsync_NoCamerasFound_ThrowsException()
+        public async Task RenderAsync_NoCamerasFound_ThrowsException()
         {
             using var rm = new RenderManager();
             using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
@@ -32,7 +32,7 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
-        public async Task RenderJobAsync_MultipleCamerasFound_ThrowsException()
+        public async Task RenderAsync_MultipleCamerasFound_ThrowsException()
         {
             using var rm = new RenderManager();
             using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
@@ -43,7 +43,7 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
-        public async Task GLTFAsset_DisposeAssetBeforeJob_Succeeds()
+        public async Task GLTFAsset_DisposeAssetBeforeRenderFinishes_Succeeds()
         {
             using var rm = new RenderManager();
             var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
@@ -60,7 +60,7 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
-        public async Task RenderJobAsync_1000Jobs_Succeeds()
+        public async Task RenderAsync_1000Times_Succeeds()
         {
             using var rm = new RenderManager();
             var orthographicCamera = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
@@ -77,7 +77,7 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
-        public async Task RenderTestTriangle_PixelColorIsRed()
+        public async Task RenderAsync_TestTriangle_PixelColorIsRed()
         {
             using var rm = new RenderManager();
             using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
