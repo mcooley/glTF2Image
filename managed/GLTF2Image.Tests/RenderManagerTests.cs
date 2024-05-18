@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -27,10 +28,7 @@ namespace GLTF2Image.Tests
             using var rm = new RenderManager();
             using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
 
-            using var renderJob = rm.CreateJob(100, 100);
-            renderJob.AddAsset(redTriangleUnlit);
-
-            await Assert.ThrowsAsync<InvalidSceneException>(async () => await rm.RenderJobAsync(renderJob));
+            await Assert.ThrowsAsync<InvalidSceneException>(async () => await rm.RenderAsync(100, 100, new[] { redTriangleUnlit }));
         }
 
         [Fact]
@@ -41,12 +39,41 @@ namespace GLTF2Image.Tests
             using var orthographicCamera1 = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
             using var orthographicCamera2 = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
 
-            using var renderJob = rm.CreateJob(100, 100);
-            renderJob.AddAsset(redTriangleUnlit);
-            renderJob.AddAsset(orthographicCamera1);
-            renderJob.AddAsset(orthographicCamera2);
+            await Assert.ThrowsAsync<InvalidSceneException>(async () => await rm.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera1, orthographicCamera2 }));
+        }
 
-            await Assert.ThrowsAsync<InvalidSceneException>(async () => await rm.RenderJobAsync(renderJob));
+        [Fact]
+        public async Task GLTFAsset_DisposeAssetBeforeJob_Succeeds()
+        {
+            using var rm = new RenderManager();
+            var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            var orthographicCamera = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+
+            var dataTask = rm.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera });
+
+            redTriangleUnlit.Dispose();
+            orthographicCamera.Dispose();
+
+            var data = await dataTask;
+            var inTrianglePixel = GetPixelColor(data, 100, 100, 60, 40);
+            Assert.Equal(255, inTrianglePixel.A);
+        }
+
+        [Fact]
+        public async Task RenderJobAsync_1000Jobs_Succeeds()
+        {
+            using var rm = new RenderManager();
+            var orthographicCamera = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+
+            var tasks = new List<Task<byte[]>>();
+            for (int i = 0; i < 1000; i++)
+            {
+                using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+
+                tasks.Add(rm.RenderAsync(100, 100, new[] { orthographicCamera, redTriangleUnlit }));
+            }
+
+            await Task.WhenAll(tasks);
         }
 
         [Fact]
@@ -56,10 +83,7 @@ namespace GLTF2Image.Tests
             using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
             using var orthographicCamera = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
 
-            using var renderJob = rm.CreateJob(100, 100);
-            renderJob.AddAsset(redTriangleUnlit);
-            renderJob.AddAsset(orthographicCamera);
-            var data = await rm.RenderJobAsync(renderJob);
+            var data = await rm.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera });
 
             var inTrianglePixel = GetPixelColor(data, 100, 100, 60, 40);
             var outOfTrianglePixel = GetPixelColor(data, 100, 100, 25, 75);

@@ -17,20 +17,6 @@ struct RenderInterface
 		workQueue.exit();
 	}
 
-	RenderJob* createJob(uint32_t width, uint32_t height) {
-		RenderJob* renderJob;
-		workQueue.addWorkItemAndWait([this, &renderJob, width, height]() {
-			renderJob = renderManager->createJob(width, height);
-			});
-		return renderJob;
-	}
-
-	void destroyJob(RenderJob* job) {
-		workQueue.addWorkItem([this, job]() {
-			renderManager->destroyJob(job);
-			});
-	}
-
 	filament::gltfio::FilamentAsset* loadGLTFAsset(uint8_t* data, size_t size) {
 		filament::gltfio::FilamentAsset* asset;
 		workQueue.addWorkItemAndWait([this, &asset, data, size]() {
@@ -45,9 +31,10 @@ struct RenderInterface
 			});
 	}
 
-	void render(RenderJob* job, RenderResult* result) {
-		workQueue.addWorkItem([this, job, result]() {
-			renderManager->render(job, result);
+	void render(std::span<filament::gltfio::FilamentAsset*> assets, RenderResult* result) {
+		std::vector<filament::gltfio::FilamentAsset*> assetsVector(assets.begin(), assets.end());
+		workQueue.addWorkItem([this, assetsVector = std::move(assetsVector), result]() {
+			renderManager->render(assetsVector, result);
 			});
 	}
 
@@ -140,52 +127,11 @@ API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
 	return ApiResult::Success;
 }
 
-API_EXPORT ApiResult createJob(void* renderManager, uint32_t width, uint32_t height, void** job) {
-	try {
-		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-		RenderJob* pJob = pRenderInterface->createJob(width, height);
-		*job = reinterpret_cast<void*>(pJob);
-	}
-	catch (...) {
-		return apiResultFromException(std::current_exception());
-	}
-
-	return ApiResult::Success;
-}
-
-API_EXPORT ApiResult destroyJob(void* renderManager, void* job) {
-	try {
-		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
-		pRenderInterface->destroyJob(pJob);
-	}
-	catch (...) {
-		return apiResultFromException(std::current_exception());
-	}
-
-	return ApiResult::Success;
-}
-
-API_EXPORT ApiResult addAsset(void* job, void* gltfAsset) {
-	try {
-		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
-		filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
-		pJob->addAsset(pAsset);
-	}
-	catch (...) {
-		return apiResultFromException(std::current_exception());
-	}
-
-	return ApiResult::Success;
-}
-
 typedef void (*RenderJobCallback)(ApiResult apiResult, uint8_t* buffer, uint32_t width, uint32_t height, void* user);
 
-API_EXPORT ApiResult renderJob(void* renderManager, void* job, RenderJobCallback callback, void* user) {
+API_EXPORT ApiResult renderJob(void* renderManager, uint32_t width, uint32_t height, void** gltfAssets, uint32_t gltfAssetsCount, RenderJobCallback callback, void* user) {
 	try {
-		RenderJob* pJob = reinterpret_cast<RenderJob*>(job);
-
-		RenderResult* pResult = new RenderResult(pJob->getWidth(), pJob->getHeight());
+		RenderResult* pResult = new RenderResult(width, height);
 		pResult->setCallback([callback, pResult, user](std::exception_ptr exception, uint8_t* buffer) {
 			if (exception) {
 				ApiResult result = apiResultFromException(exception);
@@ -199,7 +145,7 @@ API_EXPORT ApiResult renderJob(void* renderManager, void* job, RenderJobCallback
 			});
 
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-		pRenderInterface->render(pJob, pResult);
+		pRenderInterface->render(std::span<filament::gltfio::FilamentAsset*>(reinterpret_cast<filament::gltfio::FilamentAsset**>(gltfAssets), static_cast<size_t>(gltfAssetsCount)), pResult);
 	}
 	catch (...) {
 		return apiResultFromException(std::current_exception());

@@ -15,11 +15,7 @@ using var lightsAndCamera = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.J
 // Render the scene.
 int width = 576;
 int height = 324;
-
-using var renderJob = renderManager.CreateJob((uint)width, (uint)height);
-renderJob.AddAsset(model);
-renderJob.AddAsset(lightsAndCamera);
-var data = await renderManager.RenderJobAsync(renderJob);
+var data = await renderManager.RenderAsync(576, 324, new[] { model, lightsAndCamera });
 
 // We currently have a pixel buffer in RGBA format. Use your favorite library to encode this as a PNG.
 // For this example, we'll use ImageSharp.

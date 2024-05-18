@@ -1,5 +1,6 @@
 #include <mutex>
 #include <functional>
+#include <span>
 #include <vector>
 
 namespace filament
@@ -29,46 +30,31 @@ namespace filament
 struct NoCamerasFoundException {};
 struct TooManyCamerasException {};
 
-struct RenderJob
-{
-    RenderJob(filament::Engine* engine, uint32_t width, uint32_t height);
-    ~RenderJob();
-
-    uint32_t getWidth();
-    uint32_t getHeight();
-
-    void addAsset(filament::gltfio::FilamentAsset* asset);
-    filament::View* createView();
-    void destroyView();
-
-private:
-    filament::Engine* mEngine;
-    std::vector<filament::gltfio::FilamentAsset*> mAssets;
-    uint32_t mWidth;
-    uint32_t mHeight;
-
-    filament::View* mView = nullptr;
-    filament::Scene* mScene = nullptr;
-
-    filament::Texture* mTexture = nullptr;
-    filament::RenderTarget* mRenderTarget = nullptr;
-};
-
 struct RenderResult
 {
     RenderResult(uint32_t width, uint32_t height);
+    ~RenderResult();
 
     void setCallback(std::function<void(std::exception_ptr, uint8_t*)> callback);
 
     uint32_t getWidth();
     uint32_t getHeight();
 
+    filament::RenderTarget* createRenderTarget(filament::Engine* engine);
+    void destroyRenderTarget();
+
     filament::backend::PixelBufferDescriptor createPixelBuffer();
+
     void reportException(std::exception_ptr exception);
 
 private:
     uint32_t mWidth;
     uint32_t mHeight;
+
+    filament::Engine* mEngine; // TODO weak_ptr
+    filament::Texture* mTexture = nullptr;
+    filament::RenderTarget* mRenderTarget = nullptr;
+
     std::vector<uint8_t> mBuffer;
     std::function<void(std::exception_ptr, uint8_t*)> mCallback = nullptr;
     std::exception_ptr mException;
@@ -84,10 +70,7 @@ struct RenderManager
     filament::gltfio::FilamentAsset* loadGLTFAsset(uint8_t* data, size_t size);
     void destroyGLTFAsset(filament::gltfio::FilamentAsset* asset);
 
-    RenderJob* createJob(uint32_t width, uint32_t height);
-    void destroyJob(RenderJob* job);
-
-    void render(RenderJob* job, RenderResult* result) noexcept;
+    void render(std::vector<filament::gltfio::FilamentAsset*> assets, RenderResult* result) noexcept;
 
 private:
     filament::Engine* mEngine = nullptr;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -31,20 +32,19 @@ namespace GLTF2Image
             return new GLTFAsset(this, assetHandle);
         }
 
-        public RenderJob CreateJob(uint width, uint height)
-        {
-            nint jobHandle;
-            NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createJob(_handle, width, height, out jobHandle));
-            return new RenderJob(this, jobHandle);
-        }
-
-        public Task<byte[]> RenderJobAsync(RenderJob job)
+        public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
         {
             TaskCompletionSource<byte[]> taskCompletionSource = new();
             GCHandle completionSourceHandle = GCHandle.Alloc(taskCompletionSource);
+            nint[] handles = new nint[assets.Count];
+            for (int i = 0; i < assets.Count; i++)
+            {
+                handles[i] = assets[i]._handle;
+            }
+
             unsafe
             {
-                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.renderJob(_handle, job._handle, &RenderJobCallback, GCHandle.ToIntPtr(completionSourceHandle)));
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.renderJob(_handle, width, height, handles, (uint)handles.Length, &RenderJobCallback, GCHandle.ToIntPtr(completionSourceHandle)));
             }
             return taskCompletionSource.Task;
         }
