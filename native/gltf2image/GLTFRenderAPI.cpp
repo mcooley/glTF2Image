@@ -127,9 +127,9 @@ API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
 	return ApiResult::Success;
 }
 
-typedef void (*RenderJobCallback)(ApiResult apiResult, uint8_t* buffer, uint32_t width, uint32_t height, void* user);
+typedef void (*RenderCallback)(ApiResult apiResult, uint8_t* buffer, uint32_t width, uint32_t height, void* user);
 
-API_EXPORT ApiResult renderJob(void* renderManager, uint32_t width, uint32_t height, void** gltfAssets, uint32_t gltfAssetsCount, RenderJobCallback callback, void* user) {
+API_EXPORT ApiResult render(void* renderManager, uint32_t width, uint32_t height, void** gltfAssets, uint32_t gltfAssetsCount, RenderJobCallback callback, void* user) {
 	try {
 		RenderResult* pResult = new RenderResult(width, height);
 		pResult->setCallback([callback, pResult, user](std::exception_ptr exception, uint8_t* buffer) {

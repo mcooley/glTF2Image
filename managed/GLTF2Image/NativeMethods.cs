@@ -19,7 +19,7 @@ namespace GLTF2Image
         public static extern uint destroyGLTFAsset(nint renderManager, nint gltfAsset);
 
         [DllImport("gltf2image_native")]
-        public static unsafe extern uint renderJob(nint renderManager, uint width, uint height, nint[] gltfAssets, uint gltfAssetsCount, delegate* unmanaged<uint, IntPtr, uint, uint, IntPtr, void> callback, IntPtr user);
+        public static unsafe extern uint render(nint renderManager, uint width, uint height, nint[] gltfAssets, uint gltfAssetsCount, delegate* unmanaged<uint, IntPtr, uint, uint, IntPtr, void> callback, IntPtr user);
 
         public static void ThrowIfNativeApiFailed(uint nativeApiResult)
         {

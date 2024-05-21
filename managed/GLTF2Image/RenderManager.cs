@@ -44,7 +44,7 @@ namespace GLTF2Image
 
             unsafe
             {
-                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.renderJob(_handle, width, height, handles, (uint)handles.Length, &RenderJobCallback, GCHandle.ToIntPtr(completionSourceHandle)));
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.render(_handle, width, height, handles, (uint)handles.Length, &RenderJobCallback, GCHandle.ToIntPtr(completionSourceHandle)));
             }
             return taskCompletionSource.Task;
         }
