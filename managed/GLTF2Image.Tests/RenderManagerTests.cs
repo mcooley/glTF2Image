@@ -13,22 +13,22 @@ namespace GLTF2Image.Tests
         [Fact]
         public async Task LoadGLTFAsset_InvalidData_ThrowsException()
         {
-            using var rm = await RenderManager.CreateAsync();
+            using var renderManager = await RenderManager.CreateAsync();
 
-            Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Array.Empty<byte>()));
-            Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"not json")));
+            Assert.Throws<InvalidSceneException>(() => renderManager.LoadGLTFAsset(Array.Empty<byte>()));
+            Assert.Throws<InvalidSceneException>(() => renderManager.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"not json")));
 
             // TODO enable this once https://github.com/google/filament/issues/7868 is fixed
-            // Assert.Throws<InvalidSceneException>(() => rm.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"{ ""invalid"": ""format"" }")));
+            // Assert.Throws<InvalidSceneException>(() => renderManager.LoadGLTFAsset(Encoding.UTF8.GetBytes(@"{ ""invalid"": ""format"" }")));
         }
 
         [Fact]
         public async Task RenderAsync_NoCamerasFound_ThrowsException()
         {
-            using var rm = await RenderManager.CreateAsync();
-            using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            using var renderManager = await RenderManager.CreateAsync();
+            using var redTriangleUnlit = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
 
-            await Assert.ThrowsAsync<InvalidSceneException>(async () => await rm.RenderAsync(100, 100, new[] { redTriangleUnlit }));
+            await Assert.ThrowsAsync<InvalidSceneException>(async () => await renderManager.RenderAsync(100, 100, new[] { redTriangleUnlit }));
         }
 
         [Fact]
@@ -45,11 +45,11 @@ namespace GLTF2Image.Tests
         [Fact]
         public async Task GLTFAsset_DisposeAssetBeforeRenderFinishes_Succeeds()
         {
-            using var rm = await RenderManager.CreateAsync();
-            var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
-            var orthographicCamera = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+            using var renderManager = await RenderManager.CreateAsync();
+            var redTriangleUnlit = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            var orthographicCamera = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
 
-            var dataTask = rm.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera });
+            var dataTask = renderManager.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera });
 
             redTriangleUnlit.Dispose();
             orthographicCamera.Dispose();
@@ -62,15 +62,15 @@ namespace GLTF2Image.Tests
         [Fact]
         public async Task RenderAsync_1000Times_Succeeds()
         {
-            using var rm = await RenderManager.CreateAsync();
-            var orthographicCamera = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+            using var renderManager = await RenderManager.CreateAsync();
+            var orthographicCamera = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
 
             var tasks = new List<Task<byte[]>>();
             for (int i = 0; i < 1000; i++)
             {
-                using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+                using var redTriangleUnlit = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
 
-                tasks.Add(rm.RenderAsync(100, 100, new[] { orthographicCamera, redTriangleUnlit }));
+                tasks.Add(renderManager.RenderAsync(100, 100, new[] { orthographicCamera, redTriangleUnlit }));
             }
 
             await Task.WhenAll(tasks);
@@ -79,11 +79,11 @@ namespace GLTF2Image.Tests
         [Fact]
         public async Task RenderAsync_TestTriangle_PixelColorIsRed()
         {
-            using var rm = await RenderManager.CreateAsync();
-            using var redTriangleUnlit = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
-            using var orthographicCamera = rm.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+            using var renderManager = await RenderManager.CreateAsync();
+            using var redTriangleUnlit = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            using var orthographicCamera = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
 
-            var data = await rm.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera });
+            var data = await renderManager.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera });
 
             var inTrianglePixel = GetPixelColor(data, 100, 100, 60, 40);
             var outOfTrianglePixel = GetPixelColor(data, 100, 100, 25, 75);
