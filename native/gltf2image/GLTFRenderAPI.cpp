@@ -62,8 +62,8 @@ API_EXPORT ApiResult destroyRenderManager(void* renderManager) {
 	try {
 		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
 
-		pRenderInterface->workQueue.addWorkItem([pRenderInterface]() {
-			delete pRenderInterface->renderManager; // TODO bug: we can't be sure this actually runs!
+		pRenderInterface->workQueue.addWorkItemAndWait([pRenderInterface]() {
+			delete pRenderInterface->renderManager;
 			});
 		pRenderInterface->workQueue.exit();
 		delete pRenderInterface;
