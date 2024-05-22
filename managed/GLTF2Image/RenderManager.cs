@@ -9,14 +9,45 @@ namespace GLTF2Image
     {
         internal nint _handle;
 
-        public RenderManager()
+        private RenderManager(nint handle)
         {
-            NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createRenderManager(out _handle));
+            _handle = handle;
         }
 
         ~RenderManager()
         {
             Dispose();
+        }
+
+        public static Task<RenderManager> CreateAsync()
+        {
+            TaskCompletionSource<RenderManager> taskCompletionSource = new();
+            GCHandle completionSourceHandle = GCHandle.Alloc(taskCompletionSource);
+            unsafe
+            {
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createRenderManager(&CreateCallback, GCHandle.ToIntPtr(completionSourceHandle)));
+            }
+
+            return taskCompletionSource.Task;
+        }
+
+        [UnmanagedCallersOnly]
+        public static void CreateCallback(uint nativeApiResult, nint handle, nint user)
+        {
+            GCHandle taskCompletionSourceHandle = GCHandle.FromIntPtr(user);
+            TaskCompletionSource<RenderManager> taskCompletionSource = (TaskCompletionSource<RenderManager>)taskCompletionSourceHandle.Target!;
+            taskCompletionSourceHandle.Free();
+
+            if (nativeApiResult != 0)
+            {
+                // Resume on a threadpool thread.
+                Task.Run(() => taskCompletionSource.SetException(NativeMethods.GetNativeApiException(nativeApiResult)));
+            }
+            else
+            {
+                // Resume on a threadpool thread.
+                Task.Run(() => taskCompletionSource.SetResult(new RenderManager(handle)));
+            }
         }
 
         public GLTFAsset LoadGLTFAsset(ReadOnlySpan<byte> data)
@@ -44,13 +75,13 @@ namespace GLTF2Image
 
             unsafe
             {
-                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.render(_handle, width, height, handles, (uint)handles.Length, &RenderJobCallback, GCHandle.ToIntPtr(completionSourceHandle)));
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.render(_handle, width, height, handles, (uint)handles.Length, &RenderCallback, GCHandle.ToIntPtr(completionSourceHandle)));
             }
             return taskCompletionSource.Task;
         }
 
         [UnmanagedCallersOnly]
-        public static void RenderJobCallback(uint nativeApiResult, IntPtr data, uint width, uint height, IntPtr user)
+        public static void RenderCallback(uint nativeApiResult, nint data, uint width, uint height, nint user)
         {
             GCHandle taskCompletionSourceHandle = GCHandle.FromIntPtr(user);
             TaskCompletionSource<byte[]> taskCompletionSource = (TaskCompletionSource<byte[]>)taskCompletionSourceHandle.Target!;

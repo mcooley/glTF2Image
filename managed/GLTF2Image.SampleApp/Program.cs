@@ -10,7 +10,7 @@ namespace GLTF2Image.SampleApp
         static async Task Main(string[] args)
         {
             // Create a RenderManager instance.
-            using var renderManager = new RenderManager();
+            using var renderManager = await RenderManager.CreateAsync();
 
             // Load the model.
             using var model = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));

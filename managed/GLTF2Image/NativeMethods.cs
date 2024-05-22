@@ -7,7 +7,7 @@ namespace GLTF2Image
     internal static class NativeMethods
     {
         [DllImport("gltf2image_native")]
-        public static extern uint createRenderManager(out nint renderManager);
+        public static unsafe extern uint createRenderManager(delegate* unmanaged<uint, nint, nint, void> callback, nint user);
 
         [DllImport("gltf2image_native")]
         public static extern uint destroyRenderManager(nint renderManager);
@@ -19,7 +19,7 @@ namespace GLTF2Image
         public static extern uint destroyGLTFAsset(nint renderManager, nint gltfAsset);
 
         [DllImport("gltf2image_native")]
-        public static unsafe extern uint render(nint renderManager, uint width, uint height, nint[] gltfAssets, uint gltfAssetsCount, delegate* unmanaged<uint, IntPtr, uint, uint, IntPtr, void> callback, IntPtr user);
+        public static unsafe extern uint render(nint renderManager, uint width, uint height, nint[] gltfAssets, uint gltfAssetsCount, delegate* unmanaged<uint, nint, uint, uint, nint, void> callback, nint user);
 
         public static void ThrowIfNativeApiFailed(uint nativeApiResult)
         {

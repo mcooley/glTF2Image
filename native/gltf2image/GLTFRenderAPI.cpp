@@ -73,10 +73,14 @@ ApiResult apiResultFromException(std::exception_ptr exception)
 	}
 }
 
-API_EXPORT ApiResult createRenderManager(void** renderManager) {
+typedef void (*CreateRenderManagerCallback)(ApiResult apiResult, void* renderManager, void* user);
+
+API_EXPORT ApiResult createRenderManager(CreateRenderManagerCallback callback, void* user) {
 	try {
 		RenderInterface* pRenderInterface = new RenderInterface();
-		*renderManager = reinterpret_cast<void*>(pRenderInterface);
+
+		// TODO make this actually async
+		callback(ApiResult::Success, reinterpret_cast<void*>(pRenderInterface), user);
 	}
 	catch (...) {
 		return apiResultFromException(std::current_exception());
@@ -129,7 +133,7 @@ API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
 
 typedef void (*RenderCallback)(ApiResult apiResult, uint8_t* buffer, uint32_t width, uint32_t height, void* user);
 
-API_EXPORT ApiResult render(void* renderManager, uint32_t width, uint32_t height, void** gltfAssets, uint32_t gltfAssetsCount, RenderJobCallback callback, void* user) {
+API_EXPORT ApiResult render(void* renderManager, uint32_t width, uint32_t height, void** gltfAssets, uint32_t gltfAssetsCount, RenderCallback callback, void* user) {
 	try {
 		RenderResult* pResult = new RenderResult(width, height);
 		pResult->setCallback([callback, pResult, user](std::exception_ptr exception, uint8_t* buffer) {
