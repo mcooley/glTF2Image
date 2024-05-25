@@ -43,13 +43,20 @@ typedef void (*CreateRenderManagerCallback)(ApiResult apiResult, void* renderMan
 API_EXPORT ApiResult createRenderManager(CreateRenderManagerCallback callback, void* user) {
 	try {
 		RenderInterface* pRenderInterface = new RenderInterface();
-		pRenderInterface->workQueue.start();
-		pRenderInterface->workQueue.addWorkItemAndWait([pRenderInterface]() {
-			pRenderInterface->renderManager = new RenderManager();
-			});
+		pRenderInterface->workQueue.addWorkItem([pRenderInterface, callback, user]() {
+			try {
+				pRenderInterface->renderManager = new RenderManager();
 
-		// TODO make this actually async
-		callback(ApiResult::Success, reinterpret_cast<void*>(pRenderInterface), user);
+				callback(ApiResult::Success, reinterpret_cast<void*>(pRenderInterface), user);
+			}
+			catch (...) {
+				pRenderInterface->workQueue.exit();
+				delete pRenderInterface;
+
+				callback(apiResultFromException(std::current_exception()), nullptr, user);
+			}
+		});
+		pRenderInterface->workQueue.start();
 	}
 	catch (...) {
 		return apiResultFromException(std::current_exception());
