@@ -152,8 +152,6 @@ RenderManager::~RenderManager() {
     delete mMaterialProvider;
 
     mEngine->destroy(mRenderer);
-
-    mEngine->flushAndWait(); // TODO this is a workaround for https://github.com/google/filament/issues/7866
     Engine::destroy(&mEngine);
 }
 

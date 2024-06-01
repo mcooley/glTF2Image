@@ -17,9 +17,7 @@ namespace GLTF2Image.Tests
 
             await Assert.ThrowsAsync<InvalidSceneException>(async () => await renderManager.LoadGLTFAssetAsync(Array.Empty<byte>()));
             await Assert.ThrowsAsync<InvalidSceneException>(async () => await renderManager.LoadGLTFAssetAsync(Encoding.UTF8.GetBytes(@"not json")));
-
-            // TODO enable this once https://github.com/google/filament/issues/7868 is fixed
-            // await Assert.ThrowsAsync<InvalidSceneException>(async () => renderManager.LoadGLTFAssetAsync(Encoding.UTF8.GetBytes(@"{ ""invalid"": ""format"" }")));
+            await Assert.ThrowsAsync<InvalidSceneException>(async () => await renderManager.LoadGLTFAssetAsync(Encoding.UTF8.GetBytes(@"{ ""invalid"": ""format"" }")));
         }
 
         [Fact]
