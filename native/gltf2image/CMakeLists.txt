@@ -21,8 +21,7 @@ endif()
 
 add_library(gltf2image_native SHARED
     GLTFRenderAPI.cpp
-    GLTFRender.cpp
-    WorkQueue.cpp)
+    GLTFRender.cpp)
 
 target_include_directories(gltf2image_native PRIVATE ${FILAMENT_INCLUDE_DIR})
 

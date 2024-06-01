@@ -122,7 +122,8 @@ void RenderResult::onBufferReady(uint8_t* buffer) {
     }
 }
 
-RenderManager::RenderManager() {
+RenderManager::RenderManager()
+    : mThreadId(std::this_thread::get_id()) {
     mEngine = Engine::Builder()
         .backend(backend::Backend::VULKAN)
         .build();
@@ -142,6 +143,8 @@ RenderManager::RenderManager() {
 }
 
 RenderManager::~RenderManager() {
+    verifyOnEngineThread();
+
     mMaterialProvider->destroyMaterials();
     gltfio::AssetLoader::destroy(&mAssetLoader);
     delete mResourceLoader;
@@ -155,6 +158,8 @@ RenderManager::~RenderManager() {
 }
 
 gltfio::FilamentAsset* RenderManager::loadGLTFAsset(uint8_t* data, size_t size) {
+    verifyOnEngineThread();
+
     gltfio::FilamentAsset* asset = mAssetLoader->createAsset(data, static_cast<uint32_t>(size));
     if (!asset) {
         return nullptr;
@@ -166,10 +171,14 @@ gltfio::FilamentAsset* RenderManager::loadGLTFAsset(uint8_t* data, size_t size) 
 }
 
 void RenderManager::destroyGLTFAsset(gltfio::FilamentAsset* asset) {
+    verifyOnEngineThread();
+
     mAssetLoader->destroyAsset(asset);
 }
 
-void RenderManager::render(std::vector<filament::gltfio::FilamentAsset*> assets, RenderResult* result) noexcept {
+void RenderManager::render(std::vector<filament::gltfio::FilamentAsset*> assets, RenderResult* result) {
+    verifyOnEngineThread();
+
     View* view = nullptr;
     Scene* scene = nullptr;
 
@@ -221,5 +230,11 @@ void RenderManager::render(std::vector<filament::gltfio::FilamentAsset*> assets,
     }
     catch (...) {
         result->reportException(std::current_exception());
+    }
+}
+
+void RenderManager::verifyOnEngineThread() {
+    if (std::this_thread::get_id() != mThreadId) {
+        throw WrongThreadException();
     }
 }

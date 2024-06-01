@@ -10,13 +10,13 @@ namespace GLTF2Image.SampleApp
         static async Task Main(string[] args)
         {
             // Create a RenderManager instance.
-            using var renderManager = await RenderManager.CreateAsync();
+            await using var renderManager = await RenderManager.CreateAsync();
 
             // Load the model.
-            using var model = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
+            await using var model = await renderManager.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
             
             // Load another gltf model defining the lights and camera.
-            using var lightsAndCamera = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
+            await using var lightsAndCamera = await renderManager.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
 
             // Render the scene.
             int width = 576;

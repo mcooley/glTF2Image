@@ -1,6 +1,7 @@
 #include <mutex>
 #include <functional>
 #include <span>
+#include <thread>
 #include <vector>
 
 namespace filament
@@ -29,6 +30,7 @@ namespace filament
 
 struct NoCamerasFoundException {};
 struct TooManyCamerasException {};
+struct WrongThreadException {};
 
 struct RenderResult
 {
@@ -70,9 +72,11 @@ struct RenderManager
     filament::gltfio::FilamentAsset* loadGLTFAsset(uint8_t* data, size_t size);
     void destroyGLTFAsset(filament::gltfio::FilamentAsset* asset);
 
-    void render(std::vector<filament::gltfio::FilamentAsset*> assets, RenderResult* result) noexcept;
+    void render(std::vector<filament::gltfio::FilamentAsset*> assets, RenderResult* result);
 
 private:
+    std::thread::id mThreadId;
+
     filament::Engine* mEngine = nullptr;
     filament::Renderer* mRenderer = nullptr;
 
@@ -80,4 +84,6 @@ private:
     filament::gltfio::MaterialProvider* mMaterialProvider = nullptr;
     filament::gltfio::TextureProvider* mTextureProvider = nullptr;
     filament::gltfio::ResourceLoader* mResourceLoader = nullptr;
+
+    void verifyOnEngineThread();
 };

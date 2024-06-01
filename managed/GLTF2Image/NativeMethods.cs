@@ -7,7 +7,7 @@ namespace GLTF2Image
     internal static class NativeMethods
     {
         [DllImport("gltf2image_native")]
-        public static unsafe extern uint createRenderManager(delegate* unmanaged<uint, nint, nint, void> callback, nint user);
+        public static unsafe extern uint createRenderManager(out nint renderManager);
 
         [DllImport("gltf2image_native")]
         public static extern uint destroyRenderManager(nint renderManager);
@@ -41,6 +41,8 @@ namespace GLTF2Image
                     return new InvalidSceneException("No cameras were found");
                 case 4: // InvalidScene_TooManyCameras
                     return new InvalidSceneException("Multiple cameras were found. The scene must have exactly one camera");
+                case 5: // WrongThread
+                    return new InvalidOperationException("API was called from the wrong thread");
                 default:
                     Debug.Fail("ApiResult was not handled");
                     return new Exception("Unknown error in gltf2image_native");

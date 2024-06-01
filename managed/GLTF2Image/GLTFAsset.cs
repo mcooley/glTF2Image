@@ -1,8 +1,9 @@
 using System;
+using System.Threading.Tasks;
 
 namespace GLTF2Image
 {
-    public class GLTFAsset : IDisposable
+    public sealed class GLTFAsset : IDisposable, IAsyncDisposable
     {
         private RenderManager _renderManager;
         internal nint _handle;
@@ -20,12 +21,13 @@ namespace GLTF2Image
 
         public void Dispose()
         {
-            if (_handle != 0)
-            {
-                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_renderManager._handle, _handle));
-                _handle = 0;
-                GC.SuppressFinalize(this);
-            }
+            DisposeAsync().AsTask().Wait();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _renderManager.DestroyGLTFAssetAsync(this);
+            GC.SuppressFinalize(this);
         }
     }
 }

@@ -4,13 +4,13 @@ glTF2Image is a package for rendering screenshots or thumbnail images of 3D mode
 ## Example
 ```csharp
 // Create a RenderManager instance.
-using var renderManager = new RenderManager();
+await using var renderManager = await RenderManager.CreateAsync();
 
 // Load the model.
-using var model = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
+await using var model = await renderManager.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
 
 // Load another gltf model defining the lights and camera.
-using var lightsAndCamera = renderManager.LoadGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
+await using var lightsAndCamera = await renderManager.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
 
 // Render the scene.
 int width = 576;

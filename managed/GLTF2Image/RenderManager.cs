@@ -1,17 +1,136 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GLTF2Image
 {
-    public class RenderManager : IDisposable
+    public sealed class RenderManager : IDisposable, IAsyncDisposable
     {
         internal nint _handle;
+        private WorkQueue _workQueue = new();
 
-        private RenderManager(nint handle)
+        private sealed class WorkQueue : IDisposable
         {
-            _handle = handle;
+            private Thread _workerThread;
+            private ConcurrentQueue<Action?> _queue = new();
+            private ManualResetEvent _event = new(false);
+
+            public WorkQueue()
+            {
+                _workerThread = new(ProcessItems);
+                _workerThread.Name = "RenderManager work queue";
+                _workerThread.Start();
+            }
+
+            public void Add(Action work)
+            {
+                _queue.Enqueue(work);
+                _event.Set();
+            }
+
+            public Task RunAsync(Action work)
+            {
+                CallbackDetails<bool> callbackDetails = new();
+
+                Add(() =>
+                {
+                    try
+                    {
+                        work();
+                        callbackDetails.SetResult(true);
+                    }
+                    catch (Exception e)
+                    {
+                        callbackDetails.SetException(e);
+                    }
+                });
+
+                return callbackDetails.Task;
+            }
+
+            public Task<T> RunAsync<T>(Func<T> work)
+            {
+                CallbackDetails<T> callbackDetails = new();
+
+                Add(() =>
+                {
+                    try
+                    {
+                        callbackDetails.SetResult(work());
+                    }
+                    catch (Exception e)
+                    {
+                        callbackDetails.SetException(e);
+                    }
+                });
+
+                return callbackDetails.Task;
+            }
+
+            public void Dispose()
+            {
+                _queue.Enqueue(null);
+                _event.Set();
+            }
+
+            private void ProcessItems()
+            {
+                while (true)
+                {
+                    if (_queue.TryDequeue(out Action? work))
+                    {
+                        if (work == null)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            work();
+                        }
+                    }
+
+                    _event.WaitOne();
+                }
+            }
+        }
+
+        private sealed class CallbackDetails<T>
+        {
+            private readonly TaskCompletionSource<T> _taskCompletionSource = new();
+            private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
+
+            public Task<T> Task => _taskCompletionSource.Task;
+
+            public void SetException(Exception exception)
+            {
+                if (_synchronizationContext != null)
+                {
+                    _synchronizationContext.Post((object? _) => _taskCompletionSource.SetException(exception), null);
+                }
+                else
+                {
+                    _ = System.Threading.Tasks.Task.Run(() => _taskCompletionSource.SetException(exception));
+                }
+            }
+
+            public void SetResult(T result)
+            {
+                if (_synchronizationContext != null)
+                {
+                    _synchronizationContext.Post((object? _) => _taskCompletionSource.SetResult(result), null);
+                }
+                else
+                {
+                    _ = System.Threading.Tasks.Task.Run(() => _taskCompletionSource.SetResult(result));
+                }
+            }
+        }
+
+        private RenderManager()
+        {
         }
 
         ~RenderManager()
@@ -19,78 +138,71 @@ namespace GLTF2Image
             Dispose();
         }
 
-        public static Task<RenderManager> CreateAsync()
+        public static async Task<RenderManager> CreateAsync()
         {
-            TaskCompletionSource<RenderManager> taskCompletionSource = new();
-            GCHandle completionSourceHandle = GCHandle.Alloc(taskCompletionSource);
-            unsafe
+            RenderManager renderManager = new();
+            renderManager._handle = await renderManager._workQueue.RunAsync(() =>
             {
-                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createRenderManager(&CreateCallback, GCHandle.ToIntPtr(completionSourceHandle)));
-            }
+                nint handle;
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createRenderManager(out handle));
+                return handle;
+            });
 
-            return taskCompletionSource.Task;
+            return renderManager;
         }
 
-        [UnmanagedCallersOnly]
-        public static void CreateCallback(uint nativeApiResult, nint handle, nint user)
+        public Task<GLTFAsset> LoadGLTFAssetAsync(ReadOnlyMemory<byte> data)
         {
-            GCHandle taskCompletionSourceHandle = GCHandle.FromIntPtr(user);
-            TaskCompletionSource<RenderManager> taskCompletionSource = (TaskCompletionSource<RenderManager>)taskCompletionSourceHandle.Target!;
-            taskCompletionSourceHandle.Free();
-
-            if (nativeApiResult != 0)
+            return _workQueue.RunAsync(() =>
             {
-                // Resume on a threadpool thread.
-                Task.Run(() => taskCompletionSource.SetException(NativeMethods.GetNativeApiException(nativeApiResult)));
-            }
-            else
-            {
-                // Resume on a threadpool thread.
-                Task.Run(() => taskCompletionSource.SetResult(new RenderManager(handle)));
-            }
-        }
-
-        public GLTFAsset LoadGLTFAsset(ReadOnlySpan<byte> data)
-        {
-            nint assetHandle;
-            unsafe
-            {
-                fixed (byte* pData = data)
+                nint assetHandle;
+                using (var dataPin = data.Pin())
                 {
-                    NativeMethods.ThrowIfNativeApiFailed(NativeMethods.loadGLTFAsset(_handle, pData, (uint)data.Length, out assetHandle));
+                    unsafe
+                    {
+                        NativeMethods.ThrowIfNativeApiFailed(NativeMethods.loadGLTFAsset(_handle, (byte*)dataPin.Pointer, (uint)data.Length, out assetHandle));
+                    }
                 }
-            }
-            return new GLTFAsset(this, assetHandle);
+                return new GLTFAsset(this, assetHandle);
+            });
         }
 
         public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
         {
-            TaskCompletionSource<byte[]> taskCompletionSource = new();
-            GCHandle completionSourceHandle = GCHandle.Alloc(taskCompletionSource);
+            CallbackDetails<byte[]> callbackDetails = new();
+            GCHandle callbackDetailsHandle = GCHandle.Alloc(callbackDetails);
+
             nint[] handles = new nint[assets.Count];
             for (int i = 0; i < assets.Count; i++)
             {
                 handles[i] = assets[i]._handle;
             }
 
-            unsafe
+            _workQueue.Add(() =>
             {
-                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.render(_handle, width, height, handles, (uint)handles.Length, &RenderCallback, GCHandle.ToIntPtr(completionSourceHandle)));
-            }
-            return taskCompletionSource.Task;
+                unsafe
+                {
+                    uint nativeApiResult = NativeMethods.render(_handle, width, height, handles, (uint)handles.Length, &RenderCallback, GCHandle.ToIntPtr(callbackDetailsHandle));
+                    if (nativeApiResult != 0)
+                    {
+                        callbackDetails.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                    }
+                }
+            });
+
+            return callbackDetails.Task;
         }
 
         [UnmanagedCallersOnly]
         public static void RenderCallback(uint nativeApiResult, nint data, uint width, uint height, nint user)
         {
-            GCHandle taskCompletionSourceHandle = GCHandle.FromIntPtr(user);
-            TaskCompletionSource<byte[]> taskCompletionSource = (TaskCompletionSource<byte[]>)taskCompletionSourceHandle.Target!;
-            taskCompletionSourceHandle.Free();
+            GCHandle callbackDetailsHandle = GCHandle.FromIntPtr(user);
+            CallbackDetails<byte[]> callbackDetails = (CallbackDetails<byte[]>)callbackDetailsHandle.Target!;
+            callbackDetailsHandle.Free();
 
             if (nativeApiResult != 0)
             {
-                // Resume on a threadpool thread.
-                Task.Run(() => taskCompletionSource.SetException(NativeMethods.GetNativeApiException(nativeApiResult)));
+                callbackDetails.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
             }
             else
             {
@@ -98,19 +210,40 @@ namespace GLTF2Image
                 byte[] managedArray = new byte[size];
                 Marshal.Copy(data, managedArray, 0, (int)size);
 
-                // Resume on a threadpool thread.
-                Task.Run(() => taskCompletionSource.SetResult(managedArray));
+                callbackDetails.SetResult(managedArray);
             }
         }
 
         public void Dispose()
         {
-            if (_handle != 0)
+            DisposeAsync().AsTask().Wait();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            Task disposeRenderManagerTask = _workQueue.RunAsync(() =>
             {
-                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyRenderManager(_handle));
-                _handle = 0;
-                GC.SuppressFinalize(this);
-            }
+                if (_handle != 0)
+                {
+                    NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyRenderManager(_handle));
+                    _handle = 0;
+                    GC.SuppressFinalize(this);
+                }
+            });
+            _workQueue.Dispose();
+            await disposeRenderManagerTask;
+        }
+
+        internal async Task DestroyGLTFAssetAsync(GLTFAsset gltfAsset)
+        {
+            await _workQueue.RunAsync(() =>
+            {
+                if (gltfAsset._handle != 0)
+                {
+                    NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_handle, gltfAsset._handle));
+                    gltfAsset._handle = 0;
+                }
+            });
         }
     }
 }

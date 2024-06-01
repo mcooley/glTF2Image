@@ -1,11 +1,4 @@
 #include "GLTFRender.h"
-#include "WorkQueue.h"
-
-struct RenderInterface
-{
-	RenderManager* renderManager = nullptr;
-	WorkQueue workQueue;
-};
 
 #if _MSC_VER
 #define API_EXPORT extern "C" __declspec(dllexport)
@@ -20,6 +13,7 @@ enum class ApiResult : uint32_t
 	InvalidScene_CouldNotLoadAsset = 2,
 	InvalidScene_NoCamerasFound = 3,
 	InvalidScene_TooManyCameras = 4,
+	WrongThread = 5,
 };
 
 ApiResult apiResultFromException(std::exception_ptr exception)
@@ -33,30 +27,18 @@ ApiResult apiResultFromException(std::exception_ptr exception)
 	catch (TooManyCamerasException) {
 		return ApiResult::InvalidScene_TooManyCameras;
 	}
+	catch (WrongThreadException) {
+		return ApiResult::WrongThread;
+	}
 	catch (...) {
 		return ApiResult::UnknownError;
 	}
 }
 
-typedef void (*CreateRenderManagerCallback)(ApiResult apiResult, void* renderManager, void* user);
-
-API_EXPORT ApiResult createRenderManager(CreateRenderManagerCallback callback, void* user) {
+API_EXPORT ApiResult createRenderManager(void** renderManager) {
 	try {
-		RenderInterface* pRenderInterface = new RenderInterface();
-		pRenderInterface->workQueue.addWorkItem([pRenderInterface, callback, user]() {
-			try {
-				pRenderInterface->renderManager = new RenderManager();
-
-				callback(ApiResult::Success, reinterpret_cast<void*>(pRenderInterface), user);
-			}
-			catch (...) {
-				pRenderInterface->workQueue.exit();
-				delete pRenderInterface;
-
-				callback(apiResultFromException(std::current_exception()), nullptr, user);
-			}
-		});
-		pRenderInterface->workQueue.start();
+		RenderManager* pRenderManager = new RenderManager();
+		*renderManager = reinterpret_cast<void*>(pRenderManager);
 	}
 	catch (...) {
 		return apiResultFromException(std::current_exception());
@@ -67,13 +49,8 @@ API_EXPORT ApiResult createRenderManager(CreateRenderManagerCallback callback, v
 
 API_EXPORT ApiResult destroyRenderManager(void* renderManager) {
 	try {
-		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
-
-		pRenderInterface->workQueue.addWorkItemAndWait([pRenderInterface]() {
-			delete pRenderInterface->renderManager;
-			});
-		pRenderInterface->workQueue.exit();
-		delete pRenderInterface;
+		RenderManager* pRenderManager = reinterpret_cast<RenderManager*>(renderManager);
+		delete pRenderManager;
 	}
 	catch (...) {
 		return apiResultFromException(std::current_exception());
@@ -84,12 +61,9 @@ API_EXPORT ApiResult destroyRenderManager(void* renderManager) {
 
 API_EXPORT ApiResult loadGLTFAsset(void* renderManager, uint8_t* data, size_t size, void** gltfAsset) {
 	try {
-		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		RenderManager* pRenderManager = reinterpret_cast<RenderManager*>(renderManager);
 
-		filament::gltfio::FilamentAsset* asset = nullptr;
-		pRenderInterface->workQueue.addWorkItemAndWait([pRenderInterface, &asset, data, size]() {
-			asset = pRenderInterface->renderManager->loadGLTFAsset(data, size);
-			});
+		filament::gltfio::FilamentAsset* asset = pRenderManager->loadGLTFAsset(data, size);
 		if (!asset) {
 			return ApiResult::InvalidScene_CouldNotLoadAsset;
 		}
@@ -105,12 +79,10 @@ API_EXPORT ApiResult loadGLTFAsset(void* renderManager, uint8_t* data, size_t si
 
 API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
 	try {
-		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		RenderManager* pRenderManager = reinterpret_cast<RenderManager*>(renderManager);
 		filament::gltfio::FilamentAsset* pAsset = reinterpret_cast<filament::gltfio::FilamentAsset*>(gltfAsset);
 
-		pRenderInterface->workQueue.addWorkItem([pRenderInterface, pAsset]() {
-			pRenderInterface->renderManager->destroyGLTFAsset(pAsset);
-			});
+		pRenderManager->destroyGLTFAsset(pAsset);
 	}
 	catch (...) {
 		return apiResultFromException(std::current_exception());
@@ -139,11 +111,9 @@ API_EXPORT ApiResult render(void* renderManager, uint32_t width, uint32_t height
 		std::span<filament::gltfio::FilamentAsset*> assetsSpan(reinterpret_cast<filament::gltfio::FilamentAsset**>(gltfAssets), static_cast<size_t>(gltfAssetsCount));
 		std::vector<filament::gltfio::FilamentAsset*> assetsVector(assetsSpan.begin(), assetsSpan.end());
 
-		RenderInterface* pRenderInterface = reinterpret_cast<RenderInterface*>(renderManager);
+		RenderManager* pRenderManager = reinterpret_cast<RenderManager*>(renderManager);
 
-		pRenderInterface->workQueue.addWorkItem([pRenderInterface, assetsVector = std::move(assetsVector), pResult]() {
-			pRenderInterface->renderManager->render(assetsVector, pResult);
-			});
+		pRenderManager->render(assetsVector, pResult);
 	}
 	catch (...) {
 		return apiResultFromException(std::current_exception());
