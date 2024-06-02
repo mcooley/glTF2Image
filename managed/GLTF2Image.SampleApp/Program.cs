@@ -11,21 +11,21 @@ namespace GLTF2Image.SampleApp
         static async Task Main(string[] args)
         {
             // Suppress console output.
-            RenderManager.Logger = NullLogger.Instance;
+            Renderer.Logger = NullLogger.Instance;
 
-            // Create a RenderManager instance.
-            await using var renderManager = await RenderManager.CreateAsync();
+            // Create a Renderer instance.
+            await using var renderer = await Renderer.CreateAsync();
 
             // Load the model.
-            await using var model = await renderManager.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
+            await using var model = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
             
             // Load another gltf model defining the lights and camera.
-            await using var lightsAndCamera = await renderManager.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
+            await using var lightsAndCamera = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
 
             // Render the scene.
             int width = 576;
             int height = 324;
-            var data = await renderManager.RenderAsync(576, 324, new[] { model, lightsAndCamera });
+            var data = await renderer.RenderAsync(576, 324, new[] { model, lightsAndCamera });
 
             // We currently have a pixel buffer in RGBA format. Use your favorite library to encode this as a PNG.
             // For this example, we'll use ImageSharp.

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace GLTF2Image
 {
-    public sealed class RenderManager : IDisposable, IAsyncDisposable
+    public sealed class Renderer : IDisposable, IAsyncDisposable
     {
         internal nint _handle;
         private WorkQueue _workQueue = new();
@@ -52,26 +52,26 @@ namespace GLTF2Image
             }
         }
 
-        private RenderManager()
+        private Renderer()
         {
         }
 
-        ~RenderManager()
+        ~Renderer()
         {
             Dispose();
         }
 
-        public static async Task<RenderManager> CreateAsync()
+        public static async Task<Renderer> CreateAsync()
         {
-            RenderManager renderManager = new();
-            renderManager._handle = await renderManager._workQueue.RunAsync(() =>
+            Renderer renderer = new();
+            renderer._handle = await renderer._workQueue.RunAsync(() =>
             {
                 nint handle;
                 NativeMethods.ThrowIfNativeApiFailed(NativeMethods.createRenderManager(out handle));
                 return handle;
             });
 
-            return renderManager;
+            return renderer;
         }
 
         public Task<GLTFAsset> LoadGLTFAssetAsync(ReadOnlyMemory<byte> data)
@@ -204,7 +204,7 @@ namespace GLTF2Image
 
         public async ValueTask DisposeAsync()
         {
-            Task disposeRenderManagerTask = _workQueue.RunAsync(() =>
+            Task disposeRendererTask = _workQueue.RunAsync(() =>
             {
                 if (_handle != 0)
                 {
@@ -214,7 +214,7 @@ namespace GLTF2Image
                 }
             });
             _workQueue.Dispose();
-            await disposeRenderManagerTask;
+            await disposeRendererTask;
         }
 
         internal async Task DestroyGLTFAssetAsync(GLTFAsset gltfAsset)

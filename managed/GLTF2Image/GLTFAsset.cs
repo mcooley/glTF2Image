@@ -5,12 +5,12 @@ namespace GLTF2Image
 {
     public sealed class GLTFAsset : IDisposable, IAsyncDisposable
     {
-        private RenderManager _renderManager;
+        private Renderer _renderer;
         internal nint _handle;
 
-        internal GLTFAsset(RenderManager renderManager, nint handle)
+        internal GLTFAsset(Renderer renderer, nint handle)
         {
-            _renderManager = renderManager;
+            _renderer = renderer;
             _handle = handle;
         }
 
@@ -26,7 +26,7 @@ namespace GLTF2Image
 
         public async ValueTask DisposeAsync()
         {
-            await _renderManager.DestroyGLTFAssetAsync(this);
+            await _renderer.DestroyGLTFAssetAsync(this);
             GC.SuppressFinalize(this);
         }
     }
