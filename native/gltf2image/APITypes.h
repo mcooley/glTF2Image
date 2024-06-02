@@ -16,4 +16,5 @@ enum class ApiResult : uint32_t
     InvalidScene_NoCamerasFound = 3,
     InvalidScene_TooManyCameras = 4,
     WrongThread = 5,
+    PixelBufferWrongSize = 6,
 };

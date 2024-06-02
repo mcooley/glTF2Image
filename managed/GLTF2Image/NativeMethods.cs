@@ -19,7 +19,16 @@ namespace GLTF2Image
         public static extern uint destroyGLTFAsset(nint renderManager, nint gltfAsset);
 
         [DllImport("gltf2image_native")]
-        public static unsafe extern uint render(nint renderManager, uint width, uint height, nint[] gltfAssets, uint gltfAssetsCount, delegate* unmanaged<uint, nint, uint, uint, nint, void> callback, nint user);
+        public static unsafe extern uint render(
+            nint renderManager,
+            uint width,
+            uint height,
+            nint[] gltfAssets,
+            uint gltfAssetsCount,
+            byte* output,
+            uint outputLength,
+            delegate* unmanaged<uint, nint, void> callback,
+            nint user);
 
         public enum LogLevel : uint
         {
@@ -55,6 +64,8 @@ namespace GLTF2Image
                     return new InvalidSceneException("Multiple cameras were found. The scene must have exactly one camera");
                 case 5: // WrongThread
                     return new InvalidOperationException("API was called from the wrong thread");
+                case 6: // PixelBufferWrongSize
+                    return new InvalidOperationException("Pixel buffer was wrong size");
                 default:
                     Debug.Fail("ApiResult was not handled");
                     return new Exception("Unknown error in gltf2image_native");

@@ -34,93 +34,45 @@ struct ImmediateCallbackHandler : public backend::CallbackHandler
 };
 static ImmediateCallbackHandler sImmediateCallbackHandler{};
 
-RenderResult::RenderResult(uint32_t width, uint32_t height)
-    : mWidth(width)
-    , mHeight(height) {
-}
+struct scope_exit
+{
+    std::function<void()> mCleanup;
 
-RenderResult::~RenderResult() {
-    destroyRenderTarget();
-}
+    explicit scope_exit(std::function<void()> cleanup) noexcept : mCleanup(std::move(cleanup)) {}
 
-void RenderResult::setCallback(std::function<void(std::exception_ptr, uint8_t*)> callback) {
-    mCallback = callback;
-}
+    ~scope_exit() noexcept {
+        if (mCleanup) {
+            mCleanup();
+        }
+    }
+};
 
-uint32_t RenderResult::getWidth() {
-    return mWidth;
-}
-
-uint32_t RenderResult::getHeight() {
-    return mHeight;
-}
-
-RenderTarget* RenderResult::createRenderTarget(Engine* engine) {
-    mEngine = engine;
-
-    mTexture = Texture::Builder()
-        .width(mWidth)
-        .height(mHeight)
-        .levels(1)
-        .sampler(Texture::Sampler::SAMPLER_2D)
-        .format(Texture::InternalFormat::RGBA8)
-        .usage(Texture::Usage::COLOR_ATTACHMENT)
-        .build(*mEngine);
-    mRenderTarget = RenderTarget::Builder()
-        .texture(RenderTarget::AttachmentPoint::COLOR, mTexture)
-        .build(*mEngine);
-
-    return mRenderTarget;
-}
-
-void RenderResult::destroyRenderTarget() {
-    if (mTexture) {
-        mEngine->destroy(mTexture);
-        mTexture = nullptr;
+struct RenderResult
+{
+    RenderResult() = default;
+    ~RenderResult() {
+        if (mTexture) {
+            mEngine->destroy(mTexture);
+        }
     }
 
-    if (mRenderTarget) {
-        mEngine->destroy(mRenderTarget);
-        mRenderTarget = nullptr;
+    void createTexture(filament::Engine* engine, uint32_t width, uint32_t height) {
+        mEngine = engine;
+
+        mTexture = Texture::Builder()
+            .width(width)
+            .height(height)
+            .levels(1)
+            .sampler(Texture::Sampler::SAMPLER_2D)
+            .format(Texture::InternalFormat::RGBA8)
+            .usage(Texture::Usage::COLOR_ATTACHMENT)
+            .build(*mEngine);
     }
-}
 
-backend::PixelBufferDescriptor RenderResult::createPixelBuffer() {
-    mBuffer = std::vector<uint8_t>(backend::PixelBufferDescriptor::computeDataSize(
-        backend::PixelDataFormat::RGBA,
-        backend::PixelDataType::UBYTE,
-        mWidth,
-        mHeight,
-        1));
-    backend::PixelBufferDescriptor bufferDescriptor(
-        mBuffer.data(),
-        mBuffer.size(),
-        backend::PixelDataFormat::RGBA,
-        backend::PixelDataType::UBYTE,
-        &sImmediateCallbackHandler,
-        [](void* buffer, size_t, void* user) {
-            auto pResult = reinterpret_cast<RenderResult*>(user);
-            pResult->onBufferReady(reinterpret_cast<uint8_t*>(buffer));
-        },
-        this);
-    return bufferDescriptor;
-}
-
-void RenderResult::reportException(std::exception_ptr exception) {
-    destroyRenderTarget();
-
-    if (mCallback) {
-        mCallback(exception, nullptr);
-    }
-}
-
-void RenderResult::onBufferReady(uint8_t* buffer) {
-    destroyRenderTarget();
-
-    if (mCallback) {
-        mCallback(nullptr, buffer);
-    }
-}
+    std::function<void()> mCallback = nullptr;
+    filament::Engine* mEngine;
+    filament::Texture* mTexture = nullptr;
+};
 
 RenderManager::RenderManager()
     : mThreadId(std::this_thread::get_id()) {
@@ -174,61 +126,93 @@ void RenderManager::destroyGLTFAsset(gltfio::FilamentAsset* asset) {
     mAssetLoader->destroyAsset(asset);
 }
 
-void RenderManager::render(std::vector<filament::gltfio::FilamentAsset*> assets, RenderResult* result) {
+void RenderManager::render(
+    uint32_t width,
+    uint32_t height,
+    std::span<filament::gltfio::FilamentAsset*> assets,
+    std::span<uint8_t> output,
+    std::function<void()> callback) {
     verifyOnEngineThread();
 
-    View* view = nullptr;
-    Scene* scene = nullptr;
+    RenderResult* result = new RenderResult();
+    result->mCallback = callback;
 
-    try {
-        view = mEngine->createView();
-        view->setRenderTarget(result->createRenderTarget(mEngine));
-        view->setBlendMode(View::BlendMode::TRANSLUCENT);
-        scene = mEngine->createScene();
-        view->setViewport({ 0, 0, result->getWidth(), result->getHeight() });
-        view->setScene(scene);
+    View* view = mEngine->createView();
+    scope_exit viewCleanup([this, view]() {
+        mEngine->destroy(view);
+    });
 
-        gltfio::FilamentAsset::Entity cameraEntity;
+    result->createTexture(mEngine, width, height);
 
-        for (gltfio::FilamentAsset* asset : assets) {
-            scene->addEntities(asset->getEntities(), asset->getEntityCount());
+    RenderTarget* renderTarget = RenderTarget::Builder()
+        .texture(RenderTarget::AttachmentPoint::COLOR, result->mTexture)
+        .build(*mEngine);
+    scope_exit renderTargetCleanup([this, renderTarget]() {
+        mEngine->destroy(renderTarget);
+    });
 
-            size_t cameraEntityCount = asset->getCameraEntityCount();
-            if ((cameraEntityCount > 0 && cameraEntity) || cameraEntityCount > 1) {
-                throw TooManyCamerasException(); // There must be exactly one camera defined per render.
+    view->setRenderTarget(renderTarget);
+    view->setBlendMode(View::BlendMode::TRANSLUCENT);
+    Scene* scene = mEngine->createScene();
+    scope_exit sceneCleanup([this, scene]() {
+        mEngine->destroy(scene);
+    });
+    view->setViewport({ 0, 0, width, height });
+    view->setScene(scene);
+
+    gltfio::FilamentAsset::Entity cameraEntity;
+
+    for (gltfio::FilamentAsset* asset : assets) {
+        scene->addEntities(asset->getEntities(), asset->getEntityCount());
+
+        size_t cameraEntityCount = asset->getCameraEntityCount();
+        if ((cameraEntityCount > 0 && cameraEntity) || cameraEntityCount > 1) {
+            throw TooManyCamerasException(); // There must be exactly one camera defined per render.
+        }
+        else if (cameraEntityCount == 1) {
+            cameraEntity = asset->getCameraEntities()[0];
+        }
+    }
+
+    if (!cameraEntity) {
+        throw NoCamerasFoundException(); // There must be exactly one camera defined per render.
+    }
+
+    filament::Camera* camera = mEngine->getCameraComponent(cameraEntity);
+    view->setCamera(camera);
+
+    mRenderer->renderStandaloneView(view);
+
+    if (output.size() != backend::PixelBufferDescriptor::computeDataSize(
+        backend::PixelDataFormat::RGBA,
+        backend::PixelDataType::UBYTE,
+        width,
+        height,
+        1)) {
+        throw PixelBufferWrongSizeException();
+    }
+
+    backend::PixelBufferDescriptor pixelBufferDescriptor(
+        output.data(),
+        output.size(),
+        backend::PixelDataFormat::RGBA,
+        backend::PixelDataType::UBYTE,
+        &sImmediateCallbackHandler,
+        [](void*, size_t, void* user) {
+            auto pResult = reinterpret_cast<RenderResult*>(user);
+
+            std::function<void()> callback = std::move(pResult->mCallback);
+
+            delete pResult;
+
+            if (callback) {
+                callback();
             }
-            else if (cameraEntityCount == 1) {
-                cameraEntity = asset->getCameraEntities()[0];
-            }
-        }
+        },
+        result);
 
-        if (!cameraEntity) {
-            throw NoCamerasFoundException(); // There must be exactly one camera defined per render.
-        }
-
-        filament::Camera* camera = mEngine->getCameraComponent(cameraEntity);
-        view->setCamera(camera);
-
-        mRenderer->renderStandaloneView(view);
-        mRenderer->readPixels(view->getRenderTarget(), 0, 0, result->getWidth(), result->getHeight(), std::move(result->createPixelBuffer()));
-        mEngine->flush();
-    }
-    catch (...) {
-        result->reportException(std::current_exception());
-    }
-
-    try {
-        if (scene) {
-            mEngine->destroy(scene);
-        }
-
-        if (view) {
-            mEngine->destroy(view);
-        }
-    }
-    catch (...) {
-        result->reportException(std::current_exception());
-    }
+    mRenderer->readPixels(view->getRenderTarget(), 0, 0, width, height, std::move(pixelBufferDescriptor));
+    mEngine->flush();
 }
 
 void RenderManager::verifyOnEngineThread() {

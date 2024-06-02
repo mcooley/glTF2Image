@@ -15,6 +15,9 @@ ApiResult apiResultFromException(std::exception_ptr exception)
     catch (WrongThreadException) {
         return ApiResult::WrongThread;
     }
+    catch (PixelBufferWrongSizeException) {
+        return ApiResult::PixelBufferWrongSize;
+    }
     catch (...) {
         return ApiResult::UnknownError;
     }
@@ -76,29 +79,31 @@ API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
     return ApiResult::Success;
 }
 
-typedef void (*RenderCallback)(ApiResult apiResult, uint8_t* buffer, uint32_t width, uint32_t height, void* user);
+typedef void (*RenderCallback)(ApiResult apiResult, void* user);
 
-API_EXPORT ApiResult render(void* renderManager, uint32_t width, uint32_t height, void** gltfAssets, uint32_t gltfAssetsCount, RenderCallback callback, void* user) {
+API_EXPORT ApiResult render(
+    void* renderManager,
+    uint32_t width,
+    uint32_t height,
+    void** gltfAssets,
+    uint32_t gltfAssetsCount,
+    void* output,
+    uint32_t outputLength,
+    RenderCallback callback,
+    void* user) {
     try {
-        RenderResult* pResult = new RenderResult(width, height);
-        pResult->setCallback([callback, pResult, user](std::exception_ptr exception, uint8_t* buffer) {
-            if (exception) {
-                ApiResult result = apiResultFromException(exception);
-                callback(result, nullptr, 0, 0, user);
-            }
-            else {
-                callback(ApiResult::Success, buffer, pResult->getWidth(), pResult->getHeight(), user);
-            }
-
-            delete pResult;
-            });
-
         std::span<filament::gltfio::FilamentAsset*> assetsSpan(reinterpret_cast<filament::gltfio::FilamentAsset**>(gltfAssets), static_cast<size_t>(gltfAssetsCount));
-        std::vector<filament::gltfio::FilamentAsset*> assetsVector(assetsSpan.begin(), assetsSpan.end());
+        std::span<uint8_t> outputSpan(reinterpret_cast<uint8_t*>(output), static_cast<size_t>(outputLength));
 
         RenderManager* pRenderManager = reinterpret_cast<RenderManager*>(renderManager);
-
-        pRenderManager->render(assetsVector, pResult);
+        pRenderManager->render(
+            width,
+            height,
+            assetsSpan,
+            outputSpan,
+            [callback, user]() {
+                callback(ApiResult::Success, user);
+            });
     }
     catch (...) {
         return apiResultFromException(std::current_exception());

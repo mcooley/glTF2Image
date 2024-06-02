@@ -1,10 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace GLTF2Image
@@ -13,123 +11,6 @@ namespace GLTF2Image
     {
         internal nint _handle;
         private WorkQueue _workQueue = new();
-
-        private sealed class WorkQueue : IDisposable
-        {
-            private Thread _workerThread;
-            private ConcurrentQueue<Action?> _queue = new();
-            private ManualResetEvent _event = new(false);
-
-            public WorkQueue()
-            {
-                _workerThread = new(ProcessItems);
-                _workerThread.Name = "RenderManager work queue";
-                _workerThread.Start();
-            }
-
-            public void Add(Action work)
-            {
-                _queue.Enqueue(work);
-                _event.Set();
-            }
-
-            public Task RunAsync(Action work)
-            {
-                CallbackDetails<bool> callbackDetails = new();
-
-                Add(() =>
-                {
-                    try
-                    {
-                        work();
-                        callbackDetails.SetResult(true);
-                    }
-                    catch (Exception e)
-                    {
-                        callbackDetails.SetException(e);
-                    }
-                });
-
-                return callbackDetails.Task;
-            }
-
-            public Task<T> RunAsync<T>(Func<T> work)
-            {
-                CallbackDetails<T> callbackDetails = new();
-
-                Add(() =>
-                {
-                    try
-                    {
-                        callbackDetails.SetResult(work());
-                    }
-                    catch (Exception e)
-                    {
-                        callbackDetails.SetException(e);
-                    }
-                });
-
-                return callbackDetails.Task;
-            }
-
-            public void Dispose()
-            {
-                _queue.Enqueue(null);
-                _event.Set();
-            }
-
-            private void ProcessItems()
-            {
-                while (true)
-                {
-                    if (_queue.TryDequeue(out Action? work))
-                    {
-                        if (work == null)
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            work();
-                        }
-                    }
-
-                    _event.WaitOne();
-                }
-            }
-        }
-
-        private sealed class CallbackDetails<T>
-        {
-            private readonly TaskCompletionSource<T> _taskCompletionSource = new();
-            private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
-
-            public Task<T> Task => _taskCompletionSource.Task;
-
-            public void SetException(Exception exception)
-            {
-                if (_synchronizationContext != null)
-                {
-                    _synchronizationContext.Post((object? _) => _taskCompletionSource.SetException(exception), null);
-                }
-                else
-                {
-                    _ = System.Threading.Tasks.Task.Run(() => _taskCompletionSource.SetException(exception));
-                }
-            }
-
-            public void SetResult(T result)
-            {
-                if (_synchronizationContext != null)
-                {
-                    _synchronizationContext.Post((object? _) => _taskCompletionSource.SetResult(result), null);
-                }
-                else
-                {
-                    _ = System.Threading.Tasks.Task.Run(() => _taskCompletionSource.SetResult(result));
-                }
-            }
-        }
 
         private static ILogger? _logger;
         public static ILogger? Logger
@@ -209,10 +90,33 @@ namespace GLTF2Image
             });
         }
 
+        private sealed class RenderResult
+        {
+            public readonly byte[] _result; // TODO private
+            private readonly CallbackContext<byte[]> _callback = new();
+
+            public Task<byte[]> Task => _callback.Task;
+
+            public RenderResult(uint width, uint height)
+            {
+                _result = new byte[width * height * 4]; // TODO rent this from a pool instead
+            }
+
+            internal void SetException(Exception exception)
+            {
+                _callback.SetException(exception);
+            }
+
+            internal void MarkComplete()
+            {
+                _callback.SetResult(_result);
+            }
+        }
+
         public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
         {
-            CallbackDetails<byte[]> callbackDetails = new();
-            GCHandle callbackDetailsHandle = GCHandle.Alloc(callbackDetails);
+            RenderResult result = new(width, height);
+            GCHandle resultHandle = GCHandle.Alloc(result);
 
             nint[] handles = new nint[assets.Count];
             for (int i = 0; i < assets.Count; i++)
@@ -224,35 +128,41 @@ namespace GLTF2Image
             {
                 unsafe
                 {
-                    uint nativeApiResult = NativeMethods.render(_handle, width, height, handles, (uint)handles.Length, &RenderCallback, GCHandle.ToIntPtr(callbackDetailsHandle));
+                    var handle = GCHandle.Alloc(result._result, GCHandleType.Pinned); // TODO need to unpin
+                    uint nativeApiResult = NativeMethods.render(
+                        _handle,
+                        width,
+                        height,
+                        handles,
+                        (uint)handles.Length,
+                        (byte*)handle.AddrOfPinnedObject(),
+                        (uint)result._result.Length,
+                        &RenderCallback,
+                        GCHandle.ToIntPtr(resultHandle));
                     if (nativeApiResult != 0)
                     {
-                        callbackDetails.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                        result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
                     }
                 }
             });
 
-            return callbackDetails.Task;
+            return result.Task;
         }
 
         [UnmanagedCallersOnly]
-        private static void RenderCallback(uint nativeApiResult, nint data, uint width, uint height, nint user)
+        private static void RenderCallback(uint nativeApiResult, nint user)
         {
-            GCHandle callbackDetailsHandle = GCHandle.FromIntPtr(user);
-            CallbackDetails<byte[]> callbackDetails = (CallbackDetails<byte[]>)callbackDetailsHandle.Target!;
-            callbackDetailsHandle.Free();
+            GCHandle resultHandle = GCHandle.FromIntPtr(user);
+            RenderResult result = (RenderResult)resultHandle.Target!;
+            resultHandle.Free();
 
             if (nativeApiResult != 0)
             {
-                callbackDetails.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
             }
             else
             {
-                uint size = 4 * width * height;
-                byte[] managedArray = new byte[size];
-                Marshal.Copy(data, managedArray, 0, (int)size);
-
-                callbackDetails.SetResult(managedArray);
+                result.MarkComplete();
             }
         }
 
