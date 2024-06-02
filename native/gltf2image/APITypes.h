@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <exception>
 
 #if _MSC_VER
