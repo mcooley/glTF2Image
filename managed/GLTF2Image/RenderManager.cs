@@ -92,22 +92,56 @@ namespace GLTF2Image
 
         private sealed class RenderResult
         {
-            public readonly byte[] _result; // TODO private
+            private readonly byte[] _result;
+            private GCHandle _pinnedResult;
             private readonly CallbackContext<byte[]> _callback = new();
 
             public Task<byte[]> Task => _callback.Task;
 
             public RenderResult(uint width, uint height)
             {
-                _result = new byte[width * height * 4]; // TODO rent this from a pool instead
+                _result = new byte[width * height * 4]; // TODO consider renting this from a pool instead
+                _pinnedResult = GCHandle.Alloc(_result, GCHandleType.Pinned);
             }
 
-            internal void SetException(Exception exception)
+            public unsafe byte* ResultBufferAddress()
+            {
+                if (_pinnedResult == default)
+                {
+                    throw new InvalidOperationException("Result is no longer pinned");
+                }
+
+                return (byte*)_pinnedResult.AddrOfPinnedObject();
+            }
+
+            public uint ResultBufferLength()
+            {
+                return (uint)_result.Length;
+            }
+
+            public GCHandle ToGCHandle()
+            {
+                return GCHandle.Alloc(this);
+            }
+
+            public static RenderResult FromGCHandle(GCHandle handle)
+            {
+                RenderResult result = (RenderResult)handle.Target!;
+                handle.Free();
+
+                // Unpin _result
+                result._pinnedResult.Free();
+                result._pinnedResult = default;
+
+                return result;
+            }
+
+            public void SetException(Exception exception)
             {
                 _callback.SetException(exception);
             }
 
-            internal void MarkComplete()
+            public void SetComplete()
             {
                 _callback.SetResult(_result);
             }
@@ -115,30 +149,28 @@ namespace GLTF2Image
 
         public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
         {
-            RenderResult result = new(width, height);
-            GCHandle resultHandle = GCHandle.Alloc(result);
-
             nint[] handles = new nint[assets.Count];
             for (int i = 0; i < assets.Count; i++)
             {
                 handles[i] = assets[i]._handle;
             }
 
+            RenderResult result = new(width, height);
+
             _workQueue.Add(() =>
             {
                 unsafe
                 {
-                    var handle = GCHandle.Alloc(result._result, GCHandleType.Pinned); // TODO need to unpin
                     uint nativeApiResult = NativeMethods.render(
                         _handle,
                         width,
                         height,
                         handles,
                         (uint)handles.Length,
-                        (byte*)handle.AddrOfPinnedObject(),
-                        (uint)result._result.Length,
+                        result.ResultBufferAddress(),
+                        result.ResultBufferLength(),
                         &RenderCallback,
-                        GCHandle.ToIntPtr(resultHandle));
+                        GCHandle.ToIntPtr(result.ToGCHandle()));
                     if (nativeApiResult != 0)
                     {
                         result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
@@ -153,8 +185,7 @@ namespace GLTF2Image
         private static void RenderCallback(uint nativeApiResult, nint user)
         {
             GCHandle resultHandle = GCHandle.FromIntPtr(user);
-            RenderResult result = (RenderResult)resultHandle.Target!;
-            resultHandle.Free();
+            RenderResult result = RenderResult.FromGCHandle(resultHandle);
 
             if (nativeApiResult != 0)
             {
@@ -162,7 +193,7 @@ namespace GLTF2Image
             }
             else
             {
-                result.MarkComplete();
+                result.SetComplete();
             }
         }
 
