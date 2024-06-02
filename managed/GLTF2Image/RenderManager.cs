@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -129,6 +131,46 @@ namespace GLTF2Image
             }
         }
 
+        private static ILogger? _logger;
+        public static ILogger? Logger
+        {
+            get => _logger;
+            set
+            {
+                if (_logger == null && value != null)
+                {
+                    _logger = value;
+                    unsafe
+                    {
+                        NativeMethods.ThrowIfNativeApiFailed(NativeMethods.setLogCallback(&LogCallback, 0));
+                    }
+                }
+                else if (_logger != null && value == null)
+                {
+                    unsafe
+                    {
+                        NativeMethods.ThrowIfNativeApiFailed(NativeMethods.setLogCallback(null, 0));
+                    }
+                    _logger = null;
+                }
+                else
+                {
+                    _logger = value;
+                }
+            }
+        }
+
+        [UnmanagedCallersOnly]
+        private static unsafe void LogCallback(NativeMethods.LogLevel level, byte* message, nint user)
+        {
+            LogLevel logLevel = (LogLevel)level;
+            if (Logger?.IsEnabled(logLevel) ?? false)
+            {
+                string logMessage = Encoding.UTF8.GetString(MemoryMarshal.CreateReadOnlySpanFromNullTerminated(message));
+                Logger.Log(logLevel, logMessage);
+            }
+        }
+
         private RenderManager()
         {
         }
@@ -194,7 +236,7 @@ namespace GLTF2Image
         }
 
         [UnmanagedCallersOnly]
-        public static void RenderCallback(uint nativeApiResult, nint data, uint width, uint height, nint user)
+        private static void RenderCallback(uint nativeApiResult, nint data, uint width, uint height, nint user)
         {
             GCHandle callbackDetailsHandle = GCHandle.FromIntPtr(user);
             CallbackDetails<byte[]> callbackDetails = (CallbackDetails<byte[]>)callbackDetailsHandle.Target!;

@@ -1,4 +1,5 @@
-﻿using SixLabors.ImageSharp;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
 namespace GLTF2Image.SampleApp
@@ -9,6 +10,9 @@ namespace GLTF2Image.SampleApp
 
         static async Task Main(string[] args)
         {
+            // Suppress console output.
+            RenderManager.Logger = NullLogger.Instance;
+
             // Create a RenderManager instance.
             await using var renderManager = await RenderManager.CreateAsync();
 

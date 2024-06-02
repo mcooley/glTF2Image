@@ -21,6 +21,18 @@ namespace GLTF2Image
         [DllImport("gltf2image_native")]
         public static unsafe extern uint render(nint renderManager, uint width, uint height, nint[] gltfAssets, uint gltfAssetsCount, delegate* unmanaged<uint, nint, uint, uint, nint, void> callback, nint user);
 
+        public enum LogLevel : uint
+        {
+            Verbose = 0,
+            Debug = 1,
+            Info = 2,
+            Warning = 3,
+            Error = 4,
+        }
+
+        [DllImport("gltf2image_native")]
+        public static unsafe extern uint setLogCallback(delegate* unmanaged<LogLevel, byte*, nint, void> callback, nint user);
+
         public static void ThrowIfNativeApiFailed(uint nativeApiResult)
         {
             if (nativeApiResult != 0)

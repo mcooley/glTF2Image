@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -8,8 +9,18 @@ using Xunit;
 
 namespace GLTF2Image.Tests
 {
-    public class RenderManagerTests
+    public class RenderManagerTests : IDisposable
     {
+        public RenderManagerTests()
+        {
+            RenderManager.Logger = null;
+        }
+
+        public void Dispose()
+        {
+            RenderManager.Logger = null;
+        }
+
         [Fact]
         public async Task LoadGLTFAsset_InvalidData_ThrowsException()
         {
@@ -92,6 +103,39 @@ namespace GLTF2Image.Tests
             Assert.True(inTrianglePixel.B < 30);
 
             Assert.Equal(0, outOfTrianglePixel.A);
+        }
+
+        private sealed class MockLogger : ILogger
+        {
+            public event Action<LogLevel, string>? LogReceived;
+
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                LogReceived?.Invoke(logLevel, formatter(state, exception));
+            }
+        }
+
+        [Fact]
+        public async Task CreateAsync_Logger_ReceivesInfoMessages()
+        {
+            var logger = new MockLogger();
+            RenderManager.Logger = logger;
+
+            bool gotExpectedMessage = false;
+            logger.LogReceived += (level, message) => {
+                if (level == LogLevel.Information && message.Contains("Vulkan device driver: SwiftShader driver"))
+                {
+                    gotExpectedMessage = true;
+                }
+            };
+
+            using var renderManager = await RenderManager.CreateAsync();
+
+            Assert.True(gotExpectedMessage);
         }
 
         private static string TestDataPath => Path.Join(Path.GetDirectoryName(typeof(RenderManagerTests).Assembly.Location), "TestData");
