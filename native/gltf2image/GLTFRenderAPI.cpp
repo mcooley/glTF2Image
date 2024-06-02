@@ -1,5 +1,5 @@
 #include "APITypes.h"
-#include "GLTFRender.h"
+#include "RenderManager.h"
 
 ApiResult apiResultFromException(std::exception_ptr exception)
 {

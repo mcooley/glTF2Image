@@ -1,4 +1,4 @@
-#include "GLTFRender.h"
+#include "RenderManager.h"
 
 #include <filament/Camera.h>
 #include <filament/Engine.h>
