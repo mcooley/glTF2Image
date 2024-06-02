@@ -86,6 +86,29 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
+        public async Task RenderAsync_CallerProvidedOutputArrayTooSmall_ThrowsException()
+        {
+            using var renderer = await Renderer.CreateAsync();
+            using var redTriangleUnlit = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            using var orthographicCamera = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+
+            await Assert.ThrowsAsync<ArgumentException>(async () => await renderer.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera }, new byte[40000 - 1]));
+        }
+
+        [Fact]
+        public async Task RenderAsync_CallerProvidedOutputArray_DoesNotAllocateNewArray()
+        {
+            using var renderer = await Renderer.CreateAsync();
+            using var redTriangleUnlit = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            using var orthographicCamera = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+
+            byte[] userArray = new byte[40000];
+            byte[] returnedData = await renderer.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera }, userArray);
+
+            Assert.Equal(userArray, returnedData);
+        }
+
+        [Fact]
         public async Task RenderAsync_TestTriangle_PixelColorIsRed()
         {
             using var renderer = await Renderer.CreateAsync();

@@ -100,7 +100,19 @@ namespace GLTF2Image
 
             public RenderResult(uint width, uint height)
             {
-                _result = new byte[width * height * 4]; // TODO consider renting this from a pool instead
+                _result = new byte[GetRequiredResultLength(width, height)];
+                _pinnedResult = GCHandle.Alloc(_result, GCHandleType.Pinned);
+            }
+
+            public RenderResult(uint width, uint height, byte[] array)
+            {
+                int requiredLength = GetRequiredResultLength(width, height);
+                if (array.Length < requiredLength)
+                {
+                    throw new ArgumentException($"Array must be at least {requiredLength} bytes");
+                }
+
+                _result = array;
                 _pinnedResult = GCHandle.Alloc(_result, GCHandleType.Pinned);
             }
 
@@ -145,17 +157,30 @@ namespace GLTF2Image
             {
                 _callback.SetResult(_result);
             }
+
+            private static int GetRequiredResultLength(uint width, uint height)
+            {
+                return (int)(4 * width * height);
+            }
         }
 
         public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
+        {
+            return RenderAsync(width, height, assets, new RenderResult(width, height));
+        }
+
+        public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, byte[] outputArray)
+        {
+            return RenderAsync(width, height, assets, new RenderResult(width, height, outputArray));
+        }
+
+        private Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, RenderResult result)
         {
             nint[] handles = new nint[assets.Count];
             for (int i = 0; i < assets.Count; i++)
             {
                 handles[i] = assets[i]._handle;
             }
-
-            RenderResult result = new(width, height);
 
             _workQueue.Add(() =>
             {
