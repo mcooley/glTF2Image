@@ -31,6 +31,11 @@ def ensure_directory_exists(directory_path):
         os.makedirs(directory_path)
 
 def split_debug_symbols(binary_path):
+    result = subprocess.run(['readelf', '-S', binary_path], capture_output=True, text=True)
+    if '.debug_info' not in result.stdout:
+        print(f"The file {binary_path} has already had debug symbols stripped.")
+        return
+
     dbg_path = binary_path[:-3] + '.dbg'
     if os.path.exists(dbg_path):
         os.remove(dbg_path)
