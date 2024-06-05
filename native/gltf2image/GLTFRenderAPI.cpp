@@ -101,7 +101,7 @@ API_EXPORT ApiResult render(
             height,
             assetsSpan,
             outputSpan,
-            [callback, user]() {
+            [callback, user](int) {
                 callback(ApiResult::Success, user);
             });
     }

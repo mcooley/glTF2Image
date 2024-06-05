@@ -38,7 +38,7 @@ struct RenderManager
         uint32_t height,
         std::span<filament::gltfio::FilamentAsset*> assets,
         std::span<uint8_t> output,
-        std::function<void()> callback);
+        std::function<void(int)> callback);
 
 private:
     std::thread::id mThreadId;

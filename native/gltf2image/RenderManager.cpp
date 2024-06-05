@@ -68,7 +68,7 @@ struct RenderResult
             .build(*mEngine);
     }
 
-    std::function<void()> mCallback = nullptr;
+    std::function<void(int)> mCallback = nullptr;
     filament::Engine* mEngine;
     filament::Texture* mTexture = nullptr;
 };
@@ -130,7 +130,7 @@ void RenderManager::render(
     uint32_t height,
     std::span<filament::gltfio::FilamentAsset*> assets,
     std::span<uint8_t> output,
-    std::function<void()> callback) {
+    std::function<void(int)> callback) {
     verifyOnEngineThread();
 
     RenderResult* result = new RenderResult();
@@ -200,12 +200,12 @@ void RenderManager::render(
         [](void*, size_t, void* user) {
             auto pResult = reinterpret_cast<RenderResult*>(user);
 
-            std::function<void()> callback = std::move(pResult->mCallback);
+            std::function<void(int)> callback = std::move(pResult->mCallback);
 
             delete pResult;
 
             if (callback) {
-                callback();
+                callback(0);
             }
         },
         result);
