@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -13,7 +14,7 @@ namespace GLTF2Image.Tests
     {
         public RendererTests()
         {
-            Renderer.Logger = null;
+            Renderer.Logger = NullLogger.Instance;
         }
 
         public void Dispose()
