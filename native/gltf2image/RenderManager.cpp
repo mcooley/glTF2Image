@@ -34,16 +34,15 @@ struct ImmediateCallbackHandler : public backend::CallbackHandler
 };
 static ImmediateCallbackHandler sImmediateCallbackHandler{};
 
+template <typename F>
 struct scope_exit
 {
-    std::function<void()> mCleanup;
+    F mCleanup;
 
-    explicit scope_exit(std::function<void()> cleanup) noexcept : mCleanup(std::move(cleanup)) {}
+    explicit scope_exit(F cleanup) noexcept : mCleanup(std::move(cleanup)) {}
 
     ~scope_exit() noexcept {
-        if (mCleanup) {
-            mCleanup();
-        }
+        mCleanup();
     }
 };
 

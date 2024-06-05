@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <exception>
 
 #if _MSC_VER
 #define API_EXPORT extern "C" __declspec(dllexport)

@@ -67,6 +67,6 @@ if(WIN32)
 endif()
 
 if(NOT MSVC)
-    target_link_libraries(gltf2image_native PRIVATE -static-libgcc -static-libstdc++)
+    target_link_options(gltf2image_native PRIVATE -static-libgcc -static-libstdc++)
     target_link_options(gltf2image_native PRIVATE "LINKER:--exclude-libs=ALL")
 endif()
