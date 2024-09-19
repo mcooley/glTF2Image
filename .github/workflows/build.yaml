@@ -80,7 +80,10 @@ jobs:
     - name: Extract version from tag
       id: extract_version
       if: github.event_name == 'release'
-      run: echo "::set-output name=version::${{ github.event.release.tag_name#v }}"
+      run: |
+        VERSION=${{ github.event.release.tag_name }}
+        VERSION=${VERSION#v}
+        echo "::set-output name=version::$VERSION"
 
     - name: Set version to 0.0.0
       id: default_version
