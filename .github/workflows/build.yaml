@@ -77,8 +77,18 @@ jobs:
         name: build-ubuntu-22.04
         path: native/out
 
+    - name: Extract version from tag
+      id: extract_version
+      if: github.event_name == 'release'
+      run: echo "::set-output name=version::${{ github.event.release.tag_name#v }}"
+
+    - name: Set version to 0.0.0
+      id: default_version
+      if: github.event_name != 'release'
+      run: echo "::set-output name=version::0.0.0"
+
     - name: Build NuGet package
-      run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj /p:Version=${{ github.event_name == 'release' && github.event.release.tag_name || '0.0.0' }} /p:GLTF2ImageRequireAllPlatforms=true
+      run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj /p:Version=${{ steps.extract_version.outputs.version || steps.default_version.outputs.version }} /p:GLTF2ImageRequireAllPlatforms=true
 
     - name: Upload NuGet package
       uses: actions/upload-artifact@v4
