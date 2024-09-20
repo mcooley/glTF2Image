@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -92,38 +93,33 @@ namespace GLTF2Image
 
         private sealed class RenderResult
         {
-            private readonly byte[] _result;
-            private GCHandle _pinnedResult;
-            private readonly CallbackContext<byte[]> _callback = new();
+            private readonly Memory<byte> _result;
+            private MemoryHandle _pinnedResult;
+            private readonly CallbackContext<Memory<byte>> _callback = new();
 
-            public Task<byte[]> Task => _callback.Task;
+            public Task<Memory<byte>> Task => _callback.Task;
 
             public RenderResult(uint width, uint height)
             {
                 _result = new byte[GetRequiredResultLength(width, height)];
-                _pinnedResult = GCHandle.Alloc(_result, GCHandleType.Pinned);
+                _pinnedResult = _result.Pin();
             }
 
-            public RenderResult(uint width, uint height, byte[] array)
+            public RenderResult(uint width, uint height, Memory<byte> result)
             {
                 int requiredLength = GetRequiredResultLength(width, height);
-                if (array.Length < requiredLength)
+                if (result.Length != requiredLength)
                 {
-                    throw new ArgumentException($"Array must be at least {requiredLength} bytes");
+                    throw new ArgumentException($"Result memory must be {requiredLength} bytes");
                 }
 
-                _result = array;
-                _pinnedResult = GCHandle.Alloc(_result, GCHandleType.Pinned);
+                _result = result;
+                _pinnedResult = _result.Pin();
             }
 
             public unsafe byte* ResultBufferAddress()
             {
-                if (_pinnedResult == default)
-                {
-                    throw new InvalidOperationException("Result is no longer pinned");
-                }
-
-                return (byte*)_pinnedResult.AddrOfPinnedObject();
+                return (byte*)_pinnedResult.Pointer;
             }
 
             public uint ResultBufferLength()
@@ -141,9 +137,7 @@ namespace GLTF2Image
                 RenderResult result = (RenderResult)handle.Target!;
                 handle.Free();
 
-                // Unpin _result
-                result._pinnedResult.Free();
-                result._pinnedResult = default;
+                result._pinnedResult.Dispose();
 
                 return result;
             }
@@ -164,17 +158,17 @@ namespace GLTF2Image
             }
         }
 
-        public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
+        public Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
         {
             return RenderAsync(width, height, assets, new RenderResult(width, height));
         }
 
-        public Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, byte[] outputArray)
+        public Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, Memory<byte> outputMemory)
         {
-            return RenderAsync(width, height, assets, new RenderResult(width, height, outputArray));
+            return RenderAsync(width, height, assets, new RenderResult(width, height, outputMemory));
         }
 
-        private Task<byte[]> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, RenderResult result)
+        private Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, RenderResult result)
         {
             nint[] handles = new nint[assets.Count];
             for (int i = 0; i < assets.Count; i++)

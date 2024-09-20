@@ -29,7 +29,7 @@ namespace GLTF2Image.SampleApp
 
             // We currently have a pixel buffer in RGBA format. Use your favorite library to encode this as a PNG.
             // For this example, we'll use ImageSharp.
-            var image = Image.LoadPixelData<Rgba32>(data, width, height);
+            var image = Image.LoadPixelData<Rgba32>(data.Span, width, height);
             await image.SaveAsPngAsync("avocado.png");
         }
     }

@@ -65,7 +65,7 @@ namespace GLTF2Image.Tests
             orthographicCamera.Dispose();
 
             var data = await dataTask;
-            var inTrianglePixel = GetPixelColor(data, 100, 100, 60, 40);
+            var inTrianglePixel = GetPixelColor(data.Span, 100, 100, 60, 40);
             Assert.Equal(255, inTrianglePixel.A);
         }
 
@@ -75,7 +75,7 @@ namespace GLTF2Image.Tests
             using var renderer = await Renderer.CreateAsync();
             var orthographicCamera = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
 
-            var tasks = new List<Task<byte[]>>();
+            var tasks = new List<Task<Memory<byte>>>();
             for (int i = 0; i < 1000; i++)
             {
                 using var redTriangleUnlit = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
@@ -97,16 +97,27 @@ namespace GLTF2Image.Tests
         }
 
         [Fact]
+        public async Task RenderAsync_CallerProvidedOutputArrayTooLarge_ThrowsException()
+        {
+            using var renderer = await Renderer.CreateAsync();
+            using var redTriangleUnlit = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
+            using var orthographicCamera = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+
+            await Assert.ThrowsAsync<ArgumentException>(async () => await renderer.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera }, new byte[40000 + 1]));
+        }
+
+        [Fact]
         public async Task RenderAsync_CallerProvidedOutputArray_DoesNotAllocateNewArray()
         {
             using var renderer = await Renderer.CreateAsync();
             using var redTriangleUnlit = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")));
             using var orthographicCamera = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
 
-            byte[] userArray = new byte[40000];
-            byte[] returnedData = await renderer.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera }, userArray);
+            byte[] userArray = new byte[40000 + 1];
+            Memory<byte> userMemory = new Memory<byte>(userArray, 0, 40000); // Verify that it's OK for the underlying array to be too big as long as the Memory passed to RenderAsync is the right size
+            Memory<byte> returnedData = await renderer.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera }, userMemory);
 
-            Assert.Equal(userArray, returnedData);
+            Assert.True(returnedData.Span.Overlaps(userArray));
         }
 
         [Fact]
@@ -118,8 +129,8 @@ namespace GLTF2Image.Tests
 
             var data = await renderer.RenderAsync(100, 100, new[] { redTriangleUnlit, orthographicCamera });
 
-            var inTrianglePixel = GetPixelColor(data, 100, 100, 60, 40);
-            var outOfTrianglePixel = GetPixelColor(data, 100, 100, 25, 75);
+            var inTrianglePixel = GetPixelColor(data.Span, 100, 100, 60, 40);
+            var outOfTrianglePixel = GetPixelColor(data.Span, 100, 100, 25, 75);
 
             Assert.Equal(255, inTrianglePixel.A);
             Assert.True(inTrianglePixel.R > 240);
@@ -164,7 +175,7 @@ namespace GLTF2Image.Tests
 
         private static string TestDataPath => Path.Join(Path.GetDirectoryName(typeof(RendererTests).Assembly.Location), "TestData");
 
-        private static Color GetPixelColor(byte[] rgbaPixelData, int width, int height, int x, int y)
+        private static Color GetPixelColor(ReadOnlySpan<byte> rgbaPixelData, int width, int height, int x, int y)
         {
             if (x < 0 || x >= width || y < 0 || y >= height)
             {
