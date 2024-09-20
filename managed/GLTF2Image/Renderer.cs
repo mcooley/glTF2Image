@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -93,7 +94,7 @@ namespace GLTF2Image
         private sealed class RenderResult
         {
             private readonly Memory<byte> _result;
-            private GCHandle _pinnedResult;
+            private MemoryHandle _pinnedResult;
             private readonly CallbackContext<Memory<byte>> _callback = new();
 
             public Task<Memory<byte>> Task => _callback.Task;
@@ -101,7 +102,7 @@ namespace GLTF2Image
             public RenderResult(uint width, uint height)
             {
                 _result = new byte[GetRequiredResultLength(width, height)];
-                _pinnedResult = GCHandle.Alloc(_result, GCHandleType.Pinned);
+                _pinnedResult = _result.Pin();
             }
 
             public RenderResult(uint width, uint height, Memory<byte> result)
@@ -113,17 +114,12 @@ namespace GLTF2Image
                 }
 
                 _result = result;
-                _pinnedResult = GCHandle.Alloc(_result, GCHandleType.Pinned);
+                _pinnedResult = _result.Pin();
             }
 
             public unsafe byte* ResultBufferAddress()
             {
-                if (_pinnedResult == default)
-                {
-                    throw new InvalidOperationException("Result is no longer pinned");
-                }
-
-                return (byte*)_pinnedResult.AddrOfPinnedObject();
+                return (byte*)_pinnedResult.Pointer;
             }
 
             public uint ResultBufferLength()
@@ -141,9 +137,7 @@ namespace GLTF2Image
                 RenderResult result = (RenderResult)handle.Target!;
                 handle.Free();
 
-                // Unpin _result
-                result._pinnedResult.Free();
-                result._pinnedResult = default;
+                result._pinnedResult.Dispose();
 
                 return result;
             }
