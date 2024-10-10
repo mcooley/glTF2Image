@@ -71,7 +71,8 @@ namespace GLTF2Image
 
         private void ProcessItems()
         {
-            while (true)
+            bool hasMoreWork = true;
+            while (hasMoreWork)
             {
                 _event.WaitOne();
 
@@ -79,6 +80,7 @@ namespace GLTF2Image
                 {
                     if (work == null)
                     {
+                        hasMoreWork = false;
                         break;
                     }
                     else
@@ -87,6 +89,8 @@ namespace GLTF2Image
                     }
                 }
             }
+
+            _event.Dispose();
         }
     }
 }
