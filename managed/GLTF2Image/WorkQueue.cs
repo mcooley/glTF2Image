@@ -9,7 +9,7 @@ namespace GLTF2Image
     {
         private Thread _workerThread;
         private ConcurrentQueue<Action?> _queue = new();
-        private ManualResetEvent _event = new(false);
+        private AutoResetEvent _event = new(false);
 
         public WorkQueue()
         {
@@ -73,7 +73,9 @@ namespace GLTF2Image
         {
             while (true)
             {
-                if (_queue.TryDequeue(out Action? work))
+                _event.WaitOne();
+
+                while (_queue.TryDequeue(out Action? work))
                 {
                     if (work == null)
                     {
@@ -84,8 +86,6 @@ namespace GLTF2Image
                         work();
                     }
                 }
-
-                _event.WaitOne();
             }
         }
     }
