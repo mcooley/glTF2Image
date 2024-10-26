@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index d12cb7f97..aa1316f79 100644
+index 22ebba188..179334098 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -472,6 +472,12 @@ else()
+@@ -504,6 +504,12 @@ else()
          )
      endif()
  
@@ -15,6 +15,3 @@ index d12cb7f97..aa1316f79 100644
      if(ARCH STREQUAL "x86")
          set_cpp_flag("-m32")
          set_cpp_flag("-msse2")
--- 
-2.34.1
-
