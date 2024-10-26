@@ -75,20 +75,9 @@ namespace GLTF2Image
             return renderer;
         }
 
-        public Task<GLTFAsset> LoadGLTFAssetAsync(ReadOnlyMemory<byte> data)
+        public GLTFAsset CreateGLTFAsset(ReadOnlyMemory<byte> data, bool keepLoadedForMultipleRenders = false)
         {
-            return _workQueue.RunAsync(() =>
-            {
-                nint assetHandle;
-                using (var dataPin = data.Pin())
-                {
-                    unsafe
-                    {
-                        NativeMethods.ThrowIfNativeApiFailed(NativeMethods.loadGLTFAsset(_handle, (byte*)dataPin.Pointer, (uint)data.Length, out assetHandle));
-                    }
-                }
-                return new GLTFAsset(this, assetHandle);
-            });
+            return new GLTFAsset(this, data, keepLoadedForMultipleRenders);
         }
 
         private sealed class RenderResult
@@ -178,6 +167,32 @@ namespace GLTF2Image
 
             _workQueue.Add(() =>
             {
+                // Load assets
+                nint[] handles = new nint[assets.Count];
+                for (int i = 0; i < assets.Count; i++)
+                {
+                    if (!assets[i].IsLoaded)
+                    {
+                        nint assetHandle;
+                        using (var dataPin = assets[i]._data.Pin())
+                        {
+                            unsafe
+                            {
+                                uint nativeApiResult = NativeMethods.loadGLTFAsset(_handle, (byte*)dataPin.Pointer, (uint)assets[i]._data.Length, out assetHandle);
+                                if (nativeApiResult != 0)
+                                {
+                                    result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                                    return;
+                                }
+                            }
+                        }
+                        assets[i]._handle = assetHandle;
+                    }
+
+                    handles[i] = assets[i]._handle;
+                }
+
+                // Render
                 unsafe
                 {
                     uint nativeApiResult = NativeMethods.render(
@@ -193,6 +208,24 @@ namespace GLTF2Image
                     if (nativeApiResult != 0)
                     {
                         result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                        return;
+                    }
+                }
+
+                // Unload assets
+                // Assets will be unloaded eventually when the GLTFAsset object is destroyed, but it can be more
+                // efficient to unload eagerly if we know that the asset won't be needed again.
+                for (int i = 0; i < assets.Count; i++)
+                {
+                    if (assets[i].IsLoaded && !assets[i]._keepLoadedForMultipleRenders)
+                    {
+                        uint nativeApiResult = NativeMethods.destroyGLTFAsset(_handle, assets[i]._handle);
+                        if (nativeApiResult != 0)
+                        {
+                            result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                            return;
+                        }
+                        assets[i]._handle = 0;
                     }
                 }
             });
@@ -240,7 +273,7 @@ namespace GLTF2Image
         {
             await _workQueue.RunAsync(() =>
             {
-                if (gltfAsset._handle != 0)
+                if (gltfAsset.IsLoaded)
                 {
                     NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_handle, gltfAsset._handle));
                     gltfAsset._handle = 0;
