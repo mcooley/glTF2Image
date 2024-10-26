@@ -17,10 +17,10 @@ namespace GLTF2Image.SampleApp
             await using var renderer = await Renderer.CreateAsync();
 
             // Load the model.
-            await using var model = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
+            await using var model = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "Avocado.glb")));
             
             // Load another gltf model defining the lights and camera.
-            await using var lightsAndCamera = await renderer.LoadGLTFAssetAsync(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
+            await using var lightsAndCamera = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "avocado_lights_and_camera.gltf")));
 
             // Render the scene.
             int width = 576;

@@ -5,13 +5,19 @@ namespace GLTF2Image
 {
     public sealed class GLTFAsset : IDisposable, IAsyncDisposable
     {
-        private Renderer _renderer;
+        private readonly Renderer _renderer;
+        internal ReadOnlyMemory<byte> _data;
+        internal readonly bool _keepLoadedForMultipleRenders;
+
         internal nint _handle;
 
-        internal GLTFAsset(Renderer renderer, nint handle)
+        internal bool IsLoaded => _handle != 0;
+
+        internal GLTFAsset(Renderer renderer, ReadOnlyMemory<byte> data, bool keepLoadedForMultipleRenders)
         {
             _renderer = renderer;
-            _handle = handle;
+            _data = data;
+            _keepLoadedForMultipleRenders = keepLoadedForMultipleRenders;
         }
 
         ~GLTFAsset()
@@ -26,7 +32,10 @@ namespace GLTF2Image
 
         public async ValueTask DisposeAsync()
         {
-            await _renderer.DestroyGLTFAssetAsync(this);
+            if (IsLoaded)
+            {
+                await _renderer.DestroyGLTFAssetAsync(this);
+            }
             GC.SuppressFinalize(this);
         }
     }
