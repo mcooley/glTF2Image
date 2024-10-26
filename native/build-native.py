@@ -60,8 +60,7 @@ ensure_directory_exists(native_out_dir)
 print('Building SwiftShader...')
 swiftshader_dir = native_dir + '/swiftshader'
 os.chdir(swiftshader_dir)
-apply_patch('../swiftshader_patches/0001-no-download-commit-hook.patch')
-apply_patch('../swiftshader_patches/0002-static-link-c-libraries.patch')
+apply_patch('../swiftshader_patches/0001-static-link-c-libraries.patch')
 swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
 ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
