@@ -6,7 +6,7 @@ namespace GLTF2Image.SampleApp
 {
     internal class Program
     {
-        private static string TestDataPath => Path.Join(Path.GetDirectoryName(typeof(Program).Assembly.Location), "TestData");
+        private static string TestDataPath => Path.Join(AppContext.BaseDirectory, "TestData");
 
         static async Task Main(string[] args)
         {

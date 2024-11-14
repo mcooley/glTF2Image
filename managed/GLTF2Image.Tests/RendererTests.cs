@@ -178,7 +178,7 @@ namespace GLTF2Image.Tests
             Assert.True(gotExpectedMessage);
         }
 
-        private static string TestDataPath => Path.Join(Path.GetDirectoryName(typeof(RendererTests).Assembly.Location), "TestData");
+        private static string TestDataPath => Path.Join(AppContext.BaseDirectory, "TestData");
 
         private static Color GetPixelColor(ReadOnlySpan<byte> rgbaPixelData, int width, int height, int x, int y)
         {
