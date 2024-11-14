@@ -93,8 +93,14 @@ jobs:
     - name: Build NuGet package
       run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj /p:Version=${{ steps.extract_version.outputs.version || steps.default_version.outputs.version }} /p:GLTF2ImageRequireAllPlatforms=true
 
-    - name: Upload NuGet package
+    - name: Upload NuGet package to build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: nuget-package
         path: managed/GLTF2Image/bin/Release/*.nupkg
+
+    - name: Upload NuGet package to release
+      if: github.event_name == 'release'
+      run: gh release upload ${{ github.event.release.tag_name }} managed/GLTF2Image/bin/Release/*.nupkg
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
