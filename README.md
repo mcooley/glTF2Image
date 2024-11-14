@@ -38,6 +38,6 @@ Filament has good support for many glTF features and extensions. There are a sma
 - Only one directional light is [supported](https://github.com/google/filament/blob/c93aa4c90df7a814a076ebc8d92cc94d4fa96910/filament/include/filament/LightManager.h#L89)
 
 ## Requirements
-- .NET 6 or later
+- .NET 8 or later
 - Windows or Linux
 - x64
