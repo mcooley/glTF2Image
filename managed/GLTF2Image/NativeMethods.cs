@@ -4,22 +4,22 @@ using System.Runtime.InteropServices;
 
 namespace GLTF2Image
 {
-    internal static class NativeMethods
+    internal static partial class NativeMethods
     {
-        [DllImport("gltf2image_native")]
-        public static unsafe extern uint createRenderManager(out nint renderManager);
+        [LibraryImport("gltf2image_native")]
+        public static unsafe partial uint createRenderManager(out nint renderManager);
 
-        [DllImport("gltf2image_native")]
-        public static extern uint destroyRenderManager(nint renderManager);
+        [LibraryImport("gltf2image_native")]
+        public static partial uint destroyRenderManager(nint renderManager);
 
-        [DllImport("gltf2image_native")]
-        public static unsafe extern uint loadGLTFAsset(nint renderManager, byte* data, uint size, out nint gltfAsset);
+        [LibraryImport("gltf2image_native")]
+        public static unsafe partial uint loadGLTFAsset(nint renderManager, byte* data, uint size, out nint gltfAsset);
 
-        [DllImport("gltf2image_native")]
-        public static extern uint destroyGLTFAsset(nint renderManager, nint gltfAsset);
+        [LibraryImport("gltf2image_native")]
+        public static partial uint destroyGLTFAsset(nint renderManager, nint gltfAsset);
 
-        [DllImport("gltf2image_native")]
-        public static unsafe extern uint render(
+        [LibraryImport("gltf2image_native")]
+        public static unsafe partial uint render(
             nint renderManager,
             uint width,
             uint height,
@@ -39,8 +39,8 @@ namespace GLTF2Image
             Error = 4,
         }
 
-        [DllImport("gltf2image_native")]
-        public static unsafe extern uint setLogCallback(delegate* unmanaged<LogLevel, byte*, nint, void> callback, nint user);
+        [LibraryImport("gltf2image_native")]
+        public static unsafe partial uint setLogCallback(delegate* unmanaged<LogLevel, byte*, nint, void> callback, nint user);
 
         public static void ThrowIfNativeApiFailed(uint nativeApiResult)
         {
