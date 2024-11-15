@@ -53,7 +53,9 @@ jobs:
           native/out
 
     - name: Run GLTF2Image.Tests
-      run: dotnet test -c ${{ fromJson('["Debug","Release"]')[index(fromJson('["debug","release"]'), matrix.build_type)] }} managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
+      run: dotnet test -c $CONFIG managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
+      env:
+        CONFIG: ${{ matrix.build_type == 'debug' && 'Debug' || 'Release' }}
 
   package:
     needs: build
