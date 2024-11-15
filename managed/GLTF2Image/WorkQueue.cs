@@ -9,6 +9,7 @@ namespace GLTF2Image
     {
         private Thread _workerThread;
         private ConcurrentQueue<Action?> _queue = new();
+        private ConcurrentQueue<Action?> _highPriorityQueue = new();
         private AutoResetEvent _event = new(false);
 
         public WorkQueue()
@@ -18,13 +19,13 @@ namespace GLTF2Image
             _workerThread.Start();
         }
 
-        public void Add(Action work)
+        public void Add(Action work, bool highPriority = false)
         {
-            _queue.Enqueue(work);
+            (highPriority ? _highPriorityQueue : _queue).Enqueue(work);
             _event.Set();
         }
 
-        public Task RunAsync(Action work)
+        public Task RunAsync(Action work, bool highPriority = false)
         {
             CallbackContext<bool> callbackContext = new();
 
@@ -39,12 +40,13 @@ namespace GLTF2Image
                 {
                     callbackContext.SetException(e);
                 }
-            });
+            },
+            highPriority);
 
             return callbackContext.Task;
         }
 
-        public Task<T> RunAsync<T>(Func<T> work)
+        public Task<T> RunAsync<T>(Func<T> work, bool highPriority = false)
         {
             CallbackContext<T> callbackContext = new();
 
@@ -58,7 +60,8 @@ namespace GLTF2Image
                 {
                     callbackContext.SetException(e);
                 }
-            });
+            },
+            highPriority);
 
             return callbackContext.Task;
         }
@@ -76,7 +79,7 @@ namespace GLTF2Image
             {
                 _event.WaitOne();
 
-                while (_queue.TryDequeue(out Action? work))
+                while (TryDequeue(out Action? work))
                 {
                     if (work == null)
                     {
@@ -91,6 +94,16 @@ namespace GLTF2Image
             }
 
             _event.Dispose();
+        }
+
+        private bool TryDequeue(out Action? work)
+        {
+            if (_highPriorityQueue.TryDequeue(out work))
+            {
+                return true;
+            }
+
+            return _queue.TryDequeue(out work);
         }
     }
 }

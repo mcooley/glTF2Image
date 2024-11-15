@@ -27,8 +27,11 @@ namespace GLTF2Image
             uint gltfAssetsCount,
             byte* output,
             uint outputLength,
-            delegate* unmanaged<uint, nint, void> callback,
+            delegate* unmanaged<uint, nint, nint, void> callback,
             nint user);
+
+        [LibraryImport("gltf2image_native")]
+        public static unsafe partial uint destroyTexture(nint renderManager, nint texture);
 
         public enum LogLevel : uint
         {
