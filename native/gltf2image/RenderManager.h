@@ -9,6 +9,7 @@ namespace filament
 {
     class Engine;
     class Renderer;
+    class Texture;
 
     namespace gltfio
     {
@@ -38,7 +39,8 @@ struct RenderManager
         uint32_t height,
         std::span<filament::gltfio::FilamentAsset*> assets,
         std::span<uint8_t> output,
-        std::function<void(int)> callback);
+        std::function<void(filament::Texture*)> callback);
+    void destroyTexture(filament::Texture* texture);
 
 private:
     std::thread::id mThreadId;

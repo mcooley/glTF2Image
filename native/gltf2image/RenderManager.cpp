@@ -48,16 +48,7 @@ struct scope_exit
 
 struct RenderResult
 {
-    RenderResult() = default;
-    ~RenderResult() {
-        if (mTexture) {
-            mEngine->destroy(mTexture);
-        }
-    }
-
     void createTexture(filament::Engine* engine, uint32_t width, uint32_t height) {
-        mEngine = engine;
-
         mTexture = Texture::Builder()
             .width(width)
             .height(height)
@@ -65,11 +56,10 @@ struct RenderResult
             .sampler(Texture::Sampler::SAMPLER_2D)
             .format(Texture::InternalFormat::RGBA8)
             .usage(Texture::Usage::COLOR_ATTACHMENT)
-            .build(*mEngine);
+            .build(*engine);
     }
 
-    std::function<void(int)> mCallback = nullptr;
-    filament::Engine* mEngine;
+    std::function<void(filament::Texture*)> mCallback = nullptr;
     filament::Texture* mTexture = nullptr;
 };
 
@@ -130,7 +120,7 @@ void RenderManager::render(
     uint32_t height,
     std::span<filament::gltfio::FilamentAsset*> assets,
     std::span<uint8_t> output,
-    std::function<void(int)> callback) {
+    std::function<void(filament::Texture*)> callback) {
     verifyOnEngineThread();
 
     RenderResult* result = new RenderResult();
@@ -200,18 +190,24 @@ void RenderManager::render(
         [](void*, size_t, void* user) {
             auto pResult = reinterpret_cast<RenderResult*>(user);
 
-            std::function<void(int)> callback = std::move(pResult->mCallback);
-
-            delete pResult;
+            std::function<void(filament::Texture*)> callback = std::move(pResult->mCallback);
 
             if (callback) {
-                callback(0);
+                callback(pResult->mTexture);
             }
+
+            delete pResult;
         },
         result);
 
     mRenderer->readPixels(view->getRenderTarget(), 0, 0, width, height, std::move(pixelBufferDescriptor));
     mEngine->flush();
+}
+
+void RenderManager::destroyTexture(filament::Texture* texture) {
+    verifyOnEngineThread();
+
+    mEngine->destroy(texture);
 }
 
 void RenderManager::verifyOnEngineThread() {

@@ -79,7 +79,7 @@ API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
     return ApiResult::Success;
 }
 
-typedef void (*RenderCallback)(ApiResult apiResult, void* user);
+typedef void (*RenderCallback)(ApiResult apiResult, void* texture, void* user);
 
 API_EXPORT ApiResult render(
     void* renderManager,
@@ -101,9 +101,23 @@ API_EXPORT ApiResult render(
             height,
             assetsSpan,
             outputSpan,
-            [callback, user](int) {
-                callback(ApiResult::Success, user);
+            [callback, user](filament::Texture* texture) {
+                callback(ApiResult::Success, reinterpret_cast<void*>(texture), user);
             });
+    }
+    catch (...) {
+        return apiResultFromException(std::current_exception());
+    }
+
+    return ApiResult::Success;
+}
+
+API_EXPORT ApiResult destroyTexture(void* renderManager, void* texture) {
+    try {
+        RenderManager* pRenderManager = reinterpret_cast<RenderManager*>(renderManager);
+        filament::Texture* pTexture = reinterpret_cast<filament::Texture*>(texture);
+
+        pRenderManager->destroyTexture(pTexture);
     }
     catch (...) {
         return apiResultFromException(std::current_exception());

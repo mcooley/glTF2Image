@@ -82,20 +82,23 @@ namespace GLTF2Image
 
         private sealed class RenderResult
         {
+            private readonly Renderer _renderer;
             private readonly Memory<byte> _result;
             private MemoryHandle _pinnedResult;
             private readonly CallbackContext<Memory<byte>> _callback = new();
 
             public Task<Memory<byte>> Task => _callback.Task;
 
-            public RenderResult(uint width, uint height)
+            public RenderResult(Renderer renderer, uint width, uint height)
             {
+                _renderer = renderer;
                 _result = new byte[GetRequiredResultLength(width, height)];
                 _pinnedResult = _result.Pin();
             }
 
-            public RenderResult(uint width, uint height, Memory<byte> result)
+            public RenderResult(Renderer renderer, uint width, uint height, Memory<byte> result)
             {
+                _renderer = renderer;
                 int requiredLength = GetRequiredResultLength(width, height);
                 if (result.Length != requiredLength)
                 {
@@ -136,8 +139,9 @@ namespace GLTF2Image
                 _callback.SetException(exception);
             }
 
-            public void SetComplete()
+            public void SetComplete(nint texture)
             {
+                _renderer.QueueDestroyTexture(texture);
                 _callback.SetResult(_result);
             }
 
@@ -149,12 +153,12 @@ namespace GLTF2Image
 
         public Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
         {
-            return RenderAsync(width, height, assets, new RenderResult(width, height));
+            return RenderAsync(width, height, assets, new RenderResult(this, width, height));
         }
 
         public Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, Memory<byte> outputMemory)
         {
-            return RenderAsync(width, height, assets, new RenderResult(width, height, outputMemory));
+            return RenderAsync(width, height, assets, new RenderResult(this, width, height, outputMemory));
         }
 
         private Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, RenderResult result)
@@ -234,7 +238,7 @@ namespace GLTF2Image
         }
 
         [UnmanagedCallersOnly]
-        private static void RenderCallback(uint nativeApiResult, nint user)
+        private static void RenderCallback(uint nativeApiResult, nint texture, nint user)
         {
             GCHandle resultHandle = GCHandle.FromIntPtr(user);
             RenderResult result = RenderResult.FromGCHandle(resultHandle);
@@ -245,7 +249,7 @@ namespace GLTF2Image
             }
             else
             {
-                result.SetComplete();
+                result.SetComplete(texture);
             }
         }
 
@@ -278,7 +282,17 @@ namespace GLTF2Image
                     NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_handle, gltfAsset._handle));
                     gltfAsset._handle = 0;
                 }
-            });
+            },
+            highPriority: true); // Jump ahead of other rendering tasks to avoid holding onto memory for too long
+        }
+
+        internal void QueueDestroyTexture(nint nativeTexture)
+        {
+            _workQueue.Add(() =>
+            {
+                NativeMethods.destroyTexture(_handle, nativeTexture);
+            },
+            highPriority: true); // Jump ahead of other rendering tasks to avoid holding onto memory for too long
         }
     }
 }
