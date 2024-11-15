@@ -5,11 +5,29 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-	<Version>0.0.0</Version>
-	<GLTF2ImageRequireAllPlatforms>false</GLTF2ImageRequireAllPlatforms>
+    <Version>0.0.0</Version>
+    <GLTF2ImageRequireAllPlatforms>false</GLTF2ImageRequireAllPlatforms>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <Content Include="./../../native/out/win-x64-debug/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-x64-debug')">
+      <PackagePath>runtimes/win-x64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/win-x64-debug/vk_swiftshader.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-x64-debug')">
+      <PackagePath>runtimes/win-x64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-x64-debug/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64-debug')">
+      <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-x64-debug/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64-debug')">
+      <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <Content Include="./../../native/out/win-x64/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-x64')">
       <PackagePath>runtimes/win-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
