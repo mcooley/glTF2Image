@@ -114,6 +114,7 @@ subprocess.run(['cmake', '../..',
     '-DFILAMENT_SUPPORTS_XLIB=OFF',
     '-DFILAMENT_SKIP_SAMPLES=ON',
     '-DFILAMENT_SKIP_SDL2=ON',
+    '-DFILAMENT_ENABLE_MATDBG=OFF',
     '-DUSE_STATIC_CRT=OFF'], check=True)
 subprocess.run(['ninja'], check=True)
 
