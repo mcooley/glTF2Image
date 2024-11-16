@@ -14,6 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-22.04]
+        build_type: [release, debug]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -42,17 +43,17 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y cmake clang libc++-14-dev libc++abi-14-dev ninja-build
 
     - name: Run native/build-native.py
-      run: python native/build-native.py
+      run: python native/build-native.py ${{ matrix.build_type }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: build-${{ matrix.os }}
+        name: build-${{ matrix.os }}-${{ matrix.build_type }}
         path: |
           native/out
 
     - name: Run GLTF2Image.Tests
-      run: dotnet test -c Release managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
+      run: dotnet test -c ${{ matrix.build_type == 'debug' && 'Debug' || 'Release' }} managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
 
   package:
     needs: build
@@ -67,16 +68,16 @@ jobs:
       with:
         dotnet-version: '8.x'
 
-    - name: Download build artifacts (windows-latest)
+    - name: Download build artifacts (windows-latest-release)
       uses: actions/download-artifact@v4
       with:
-        name: build-windows-latest
+        name: build-windows-latest-release
         path: native/out
 
-    - name: Download build artifacts (ubuntu-22.04)
+    - name: Download build artifacts (ubuntu-22.04-release)
       uses: actions/download-artifact@v4
       with:
-        name: build-ubuntu-22.04
+        name: build-ubuntu-22.04-release
         path: native/out
 
     - name: Extract version from tag

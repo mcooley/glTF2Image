@@ -11,9 +11,10 @@ import glob
 import os
 import shutil
 import subprocess
+import sys
 
 def apply_patch(patch_file):
-    reverse_result = subprocess.run(['git', 'apply', '--ignore-whitespace', '--reverse', '--check', patch_file], stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+    reverse_result = subprocess.run(['git', 'apply', '--ignore-whitespace', '--reverse', '--check', patch_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if reverse_result.returncode != 0:
         print('Applying patch ' + patch_file)
         subprocess.run(['git', 'apply', '--ignore-whitespace', patch_file], check=True)
@@ -24,7 +25,7 @@ def copy_matching_files(source_glob, target_dir):
     file_list = glob.glob(source_glob)
     for file_path in file_list:
         if os.path.isfile(file_path):
-           shutil.copy(file_path, target_dir)
+            shutil.copy(file_path, target_dir)
 
 def ensure_directory_exists(directory_path):
     if not os.path.exists(directory_path):
@@ -44,11 +45,31 @@ def split_debug_symbols(binary_path):
     subprocess.run(['objcopy', '--add-gnu-debuglink=' + dbg_path, binary_path], check=True)
 
 if os.name == 'nt':
-    build_variant = 'win-x64'
+    build_os = 'win'
 else:
-    build_variant = 'linux-x64'
+    build_os = 'linux'
 
-if build_variant == 'linux-x64':
+is_debug = False
+if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
+    is_debug = True
+
+if build_os == 'win':
+    if is_debug:
+        build_variant = 'win-x64-debug'
+    else:
+        build_variant = 'win-x64'
+else:
+    if is_debug:
+        build_variant = 'linux-x64-debug'
+    else:
+        build_variant = 'linux-x64'
+
+if is_debug:
+    build_type = 'Debug'
+else:
+    build_type = 'RelWithDebInfo'
+
+if build_os == 'linux':
     print('Using Clang...')
     os.environ["CC"] = '/usr/bin/clang'
     os.environ["CXX"] = '/usr/bin/clang++'
@@ -66,13 +87,18 @@ ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
 subprocess.run(['cmake', '../..',
     '-GNinja',
+
+    # We're always compiling SwiftShader in release mode, even in debug builds. We haven't needed to debug SwiftShader
+    # yet. In debug, SwiftShader pops up a "wait for debugger" dialog (see DEBUGGER_WAIT_DIALOG) which disrupts
+    # automated tests, and we'd need to patch that if we wanted to use Debug here.
     '-DCMAKE_BUILD_TYPE=RelWithDebInfo',
+
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
     '-DREACTOR_BACKEND=Subzero'], check=True)
 subprocess.run(['ninja'], check=True)
-if build_variant == 'linux-x64':
+if build_os == 'linux' and not is_debug:
     split_debug_symbols('libvk_swiftshader.so')
 copy_matching_files(swiftshader_build_dir + '/*vk_swiftshader.*', native_out_dir)
 
@@ -85,7 +111,7 @@ ensure_directory_exists(filament_build_dir)
 os.chdir(filament_build_dir)
 subprocess.run(['cmake', '../..',
     '-GNinja',
-    '-DCMAKE_BUILD_TYPE=RelWithDebInfo',
+    f'-DCMAKE_BUILD_TYPE={build_type}',
     '-DFILAMENT_SUPPORTS_VULKAN=ON',
     '-DFILAMENT_SUPPORTS_OPENGL=OFF',
     '-DFILAMENT_SUPPORTS_METAL=OFF',
@@ -93,6 +119,7 @@ subprocess.run(['cmake', '../..',
     '-DFILAMENT_SUPPORTS_XLIB=OFF',
     '-DFILAMENT_SKIP_SAMPLES=ON',
     '-DFILAMENT_SKIP_SDL2=ON',
+    '-DFILAMENT_ENABLE_MATDBG=OFF',
     '-DUSE_STATIC_CRT=OFF'], check=True)
 subprocess.run(['ninja'], check=True)
 
@@ -108,8 +135,8 @@ ensure_directory_exists(gltf2image_build_dir)
 os.chdir(gltf2image_build_dir)
 subprocess.run(['cmake', '../..',
     '-GNinja',
-    '-DCMAKE_BUILD_TYPE=RelWithDebInfo'], check=True)
+    f'-DCMAKE_BUILD_TYPE={build_type}'], check=True)
 subprocess.run(['ninja'], check=True)
-if build_variant == 'linux-x64':
+if build_os == 'linux' and not is_debug:
     split_debug_symbols('libgltf2image_native.so')
 copy_matching_files(gltf2image_build_dir + '/*gltf2image_native.*', native_out_dir)

@@ -78,7 +78,7 @@ namespace GLTF2Image.Tests
         public async Task RenderAsync_1000Times_Succeeds()
         {
             using var renderer = await Renderer.CreateAsync();
-            var orthographicCamera = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")), keepLoadedForMultipleRenders: true);
+            using var orthographicCamera = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")), keepLoadedForMultipleRenders: true);
 
             var tasks = new List<Task<Memory<byte>>>();
             for (int i = 0; i < 1000; i++)
