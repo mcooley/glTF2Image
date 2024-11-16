@@ -87,7 +87,12 @@ ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
 subprocess.run(['cmake', '../..',
     '-GNinja',
-    f'-DCMAKE_BUILD_TYPE={build_type}',
+
+    # We're always compiling SwiftShader in release mode, even in debug builds. We haven't needed to debug SwiftShader
+    # yet. In debug, SwiftShader pops up a "wait for debugger" dialog (see DEBUGGER_WAIT_DIALOG) which disrupts
+    # automated tests, and we'd need to patch that if we wanted to use Debug here.
+    '-DCMAKE_BUILD_TYPE=RelWithDebInfo',
+
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
