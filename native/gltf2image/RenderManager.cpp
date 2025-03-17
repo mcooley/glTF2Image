@@ -55,7 +55,7 @@ struct RenderResult
             .levels(1)
             .sampler(Texture::Sampler::SAMPLER_2D)
             .format(Texture::InternalFormat::RGBA8)
-            .usage(Texture::Usage::COLOR_ATTACHMENT)
+            .usage(Texture::Usage::COLOR_ATTACHMENT | Texture::Usage::BLIT_SRC)
             .build(*engine);
     }
 
