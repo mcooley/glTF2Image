@@ -106,6 +106,7 @@ print('Building Filament...')
 filament_dir = native_dir + '/filament'
 os.chdir(filament_dir)
 apply_patch('../filament_patches/0001-use-swiftshader-relative-path.patch')
+apply_patch('../filament_patches/0002-fix-backend-tests-for-vulkan-only-build.patch')
 filament_build_dir = filament_dir + '/out/' + build_variant
 ensure_directory_exists(filament_build_dir)
 os.chdir(filament_build_dir)
