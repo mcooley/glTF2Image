@@ -1,0 +1,15 @@
+diff --git a/filament/backend/test/test_Handles.cpp b/filament/backend/test/test_Handles.cpp
+index 695fb00bfd..403357e223 100644
+--- a/filament/backend/test/test_Handles.cpp
++++ b/filament/backend/test/test_Handles.cpp
+@@ -29,8 +29,8 @@ static constexpr size_t POOL_SIZE_BYTES = 8 * 1024U * 1024U;
+ // NOTE: actual count may be lower due to alignment requirements
+ constexpr size_t const POOL_HANDLE_COUNT = POOL_SIZE_BYTES / (32 + 96 + 184); // 31775
+ 
+-// This must match HandleAllocatorGL, so its implementation is present on all platforms.
+-#define HandleAllocatorTest  HandleAllocator<32,  96, 184>    // ~4520 / pool / MiB
++// This must match HandleAllocatorVK, so its implementation is present since we are only compiling the Vulkan backend
++#define HandleAllocatorTest  HandleAllocator<64, 160, 312>    // ~4520 / pool / MiB
+ 
+ struct MyHandle {
+ };
