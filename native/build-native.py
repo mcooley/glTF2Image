@@ -95,6 +95,10 @@ apply_patch('../swiftshader_patches/0001-static-link-c-libraries.patch')
 swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
 ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
+
+# SwiftShader's Subzero backend doesn't support ARM64, so we use LLVM on ARM64
+reactor_backend = 'LLVM' if build_arch == 'arm64' else 'Subzero'
+
 subprocess.run(['cmake', '../..',
     '-GNinja',
 
@@ -106,7 +110,7 @@ subprocess.run(['cmake', '../..',
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
-    '-DREACTOR_BACKEND=Subzero'], check=True)
+    f'-DREACTOR_BACKEND={reactor_backend}'], check=True)
 subprocess.run(['ninja'], check=True)
 if build_os == 'linux' and not is_debug:
     split_debug_symbols('libvk_swiftshader.so')
