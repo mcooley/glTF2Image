@@ -13,27 +13,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          # Windows x64
-          - os: windows-latest
-            build_type: release
-          - os: windows-latest
-            build_type: debug
-          # Linux x64
-          - os: ubuntu-22.04
-            build_type: release
-          - os: ubuntu-22.04
-            build_type: debug
-          # Windows ARM64
-          - os: windows-11-arm
-            build_type: release
-          - os: windows-11-arm
-            build_type: debug
-          # Linux ARM64
-          - os: ubuntu-24.04-arm64
-            build_type: release
-          - os: ubuntu-24.04-arm64
-            build_type: debug
+        os: [windows-latest, windows-latest-arm, ubuntu-22.04, ubuntu-22.04-arm]
+        build_type: [release, debug]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -105,10 +86,10 @@ jobs:
         name: build-windows-11-arm-release
         path: native/out
 
-    - name: Download build artifacts (ubuntu-24.04-arm64-release)
+    - name: Download build artifacts (ubuntu-22.04-arm-release)
       uses: actions/download-artifact@v4
       with:
-        name: build-ubuntu-24.04-arm64-release
+        name: build-ubuntu-22.04-arm-release
         path: native/out
 
     - name: Extract version from tag
@@ -138,3 +119,4 @@ jobs:
       run: gh release upload ${{ github.event.release.tag_name }} managed/GLTF2Image/bin/Release/*.nupkg
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
