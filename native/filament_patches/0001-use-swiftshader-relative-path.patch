@@ -56,11 +56,15 @@ index dbde8d802..7713bd4e5 100644
      return module != nullptr;
  }
 diff --git a/libs/bluevk/src/BlueVKWindows.cpp b/libs/bluevk/src/BlueVKWindows.cpp
-index b787c742a..3e96a20f4 100644
+index b787c742a..b65ec5051 100644
 --- a/libs/bluevk/src/BlueVKWindows.cpp
 +++ b/libs/bluevk/src/BlueVKWindows.cpp
-@@ -17,14 +17,33 @@
+@@ -15,16 +15,37 @@
+  * limitations under the License.
+  */
  
++#define NOMINMAX
++
  #include <windows.h>
  
 +#include <utils/Path.h>
