@@ -86,12 +86,12 @@ jobs:
       run: |
         VERSION=${{ github.event.release.tag_name }}
         VERSION=${VERSION#v}
-        echo "::set-output name=version::$VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Set version to 0.0.0
       id: default_version
       if: github.event_name != 'release'
-      run: echo "::set-output name=version::0.0.0"
+      run: echo "version=0.0.0" >> $GITHUB_OUTPUT
 
     - name: Build NuGet package
       run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj /p:Version=${{ steps.extract_version.outputs.version || steps.default_version.outputs.version }} /p:GLTF2ImageRequireAllPlatforms=true
