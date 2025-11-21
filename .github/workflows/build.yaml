@@ -25,14 +25,14 @@ jobs:
           - os: ubuntu-22.04
             build_type: debug
           # Windows ARM64
-          - os: windows-latest-arm64
+          - os: windows-11-arm
             build_type: release
-          - os: windows-latest-arm64
+          - os: windows-11-arm
             build_type: debug
           # Linux ARM64
-          - os: ubuntu-22.04-arm64
+          - os: ubuntu-24.04-arm64
             build_type: release
-          - os: ubuntu-22.04-arm64
+          - os: ubuntu-24.04-arm64
             build_type: debug
     steps:
     - uses: actions/checkout@v4
@@ -99,16 +99,16 @@ jobs:
         name: build-ubuntu-22.04-release
         path: native/out
 
-    - name: Download build artifacts (windows-latest-arm64-release)
+    - name: Download build artifacts (windows-11-arm-release)
       uses: actions/download-artifact@v4
       with:
-        name: build-windows-latest-arm64-release
+        name: build-windows-11-arm-release
         path: native/out
 
-    - name: Download build artifacts (ubuntu-22.04-arm64-release)
+    - name: Download build artifacts (ubuntu-24.04-arm64-release)
       uses: actions/download-artifact@v4
       with:
-        name: build-ubuntu-22.04-arm64-release
+        name: build-ubuntu-24.04-arm64-release
         path: native/out
 
     - name: Extract version from tag
