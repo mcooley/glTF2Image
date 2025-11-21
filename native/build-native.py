@@ -9,6 +9,7 @@
 
 import glob
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -49,20 +50,29 @@ if os.name == 'nt':
 else:
     build_os = 'linux'
 
+# Detect architecture
+machine = platform.machine().lower()
+if machine in ['amd64', 'x86_64', 'x64']:
+    build_arch = 'x64'
+elif machine in ['arm64', 'aarch64']:
+    build_arch = 'arm64'
+else:
+    raise Exception(f'Unsupported architecture: {machine}')
+
 is_debug = False
 if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
     is_debug = True
 
 if build_os == 'win':
     if is_debug:
-        build_variant = 'win-x64-debug'
+        build_variant = f'win-{build_arch}-debug'
     else:
-        build_variant = 'win-x64'
+        build_variant = f'win-{build_arch}'
 else:
     if is_debug:
-        build_variant = 'linux-x64-debug'
+        build_variant = f'linux-{build_arch}-debug'
     else:
-        build_variant = 'linux-x64'
+        build_variant = f'linux-{build_arch}'
 
 if is_debug:
     build_type = 'Debug'
