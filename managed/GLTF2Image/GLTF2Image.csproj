@@ -12,36 +12,84 @@
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <Content Include="./../../native/out/win-x64-debug/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-x64-debug')">
       <PackagePath>runtimes/win-x64/native</PackagePath>
+      <Link>runtimes/win-x64/native/gltf2image_native.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/win-x64-debug/vk_swiftshader.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-x64-debug')">
       <PackagePath>runtimes/win-x64/native</PackagePath>
+      <Link>runtimes/win-x64/native/vk_swiftshader.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/win-arm64-debug/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64-debug')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <Link>runtimes/win-arm64/native/gltf2image_native.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/win-arm64-debug/vk_swiftshader.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64-debug')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <Link>runtimes/win-arm64/native/vk_swiftshader.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/linux-x64-debug/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64-debug')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <Link>runtimes/linux-x64/native/libgltf2image_native.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/linux-x64-debug/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64-debug')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <Link>runtimes/linux-x64/native/libvk_swiftshader.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64-debug/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64-debug')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
+      <Link>runtimes/linux-arm64/native/libgltf2image_native.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64-debug/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64-debug')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
+      <Link>runtimes/linux-arm64/native/libvk_swiftshader.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <Content Include="./../../native/out/win-x64/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-x64')">
       <PackagePath>runtimes/win-x64/native</PackagePath>
+      <Link>runtimes/win-x64/native/gltf2image_native.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/win-x64/vk_swiftshader.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-x64')">
       <PackagePath>runtimes/win-x64/native</PackagePath>
+      <Link>runtimes/win-x64/native/vk_swiftshader.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/win-arm64/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <Link>runtimes/win-arm64/native/gltf2image_native.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/win-arm64/vk_swiftshader.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <Link>runtimes/win-arm64/native/vk_swiftshader.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/linux-x64/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <Link>runtimes/linux-x64/native/libgltf2image_native.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/linux-x64/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <Link>runtimes/linux-x64/native/libvk_swiftshader.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
+      <Link>runtimes/linux-arm64/native/libgltf2image_native.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
+      <Link>runtimes/linux-arm64/native/libvk_swiftshader.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
