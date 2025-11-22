@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, windows-latest-arm, ubuntu-22.04, ubuntu-22.04-arm]
+        os: [windows-latest, windows-11-arm, ubuntu-22.04, ubuntu-22.04-arm]
         build_type: [release, debug]
     steps:
     - uses: actions/checkout@v4
@@ -119,4 +119,5 @@ jobs:
       run: gh release upload ${{ github.event.release.tag_name }} managed/GLTF2Image/bin/Release/*.nupkg
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
