@@ -53,7 +53,7 @@ jobs:
           native/out
 
     - name: Run GLTF2Image.Tests
-      run: dotnet test -c ${{ matrix.build_type == 'debug' && 'Debug' || 'Release' }} managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
+      run: dotnet test -c ${{ matrix.build_type == 'debug' && 'Debug' || 'Release' }} --arch ${{ (matrix.os == 'windows-11-arm' || matrix.os == 'ubuntu-22.04-arm') && 'arm64' || 'x64' }} managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
 
   package:
     needs: build
