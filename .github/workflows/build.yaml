@@ -37,6 +37,8 @@ jobs:
     - name: Configure MSVC build environment (Windows)
       uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # Pinned to 1.13.0
       if: runner.os == 'Windows'
+      with:
+        arch: ${{ (matrix.os == 'windows-11-arm' || matrix.os == 'ubuntu-22.04-arm') && 'arm64' || 'x64' }}
 
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
@@ -53,7 +55,7 @@ jobs:
           native/out
 
     - name: Run GLTF2Image.Tests
-      run: dotnet test -c ${{ matrix.build_type == 'debug' && 'Debug' || 'Release' }} --arch ${{ (matrix.os == 'windows-11-arm' || matrix.os == 'ubuntu-22.04-arm') && 'arm64' || 'x64' }} managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
+      run: dotnet test -c ${{ matrix.build_type == 'debug' && 'Debug' || 'Release' }} managed/GLTF2Image.Tests/GLTF2Image.Tests.csproj
 
   package:
     needs: build
