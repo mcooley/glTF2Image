@@ -97,7 +97,7 @@ ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
 
 # SwiftShader's Subzero backend doesn't support ARM64, so we use LLVM on ARM64
-reactor_backend = 'LLVM' if build_arch == 'arm64' else 'Subzero'
+reactor_backend = 'LLVM-Submodule' if build_arch == 'arm64' else 'Subzero'
 
 subprocess.run(['cmake', '../..',
     '-GNinja',
