@@ -31,7 +31,7 @@ namespace GLTF2Image
             nint user);
 
         [LibraryImport("gltf2image_native")]
-        public static unsafe partial uint destroyTexture(nint renderManager, nint texture);
+        public static unsafe partial uint destroyRenderResources(nint renderManager, nint renderResources);
 
         public enum LogLevel : uint
         {

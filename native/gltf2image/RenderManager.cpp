@@ -38,29 +38,34 @@ template <typename F>
 struct scope_exit
 {
     F mCleanup;
+    bool mDisarmed = false;
 
     explicit scope_exit(F cleanup) noexcept : mCleanup(std::move(cleanup)) {}
 
+    void disarm() noexcept {
+        mDisarmed = true;
+    }
+
     ~scope_exit() noexcept {
-        mCleanup();
+        if (!mDisarmed) {
+            mCleanup();
+        }
     }
 };
 
-struct RenderResult
+// Per-render Filament resources. Owned by the render submission until the readPixels callback fires;
+// at that point ownership transfers to the user, who must hand the pointer back to
+// RenderManager::destroyRenderResources on the engine thread.
+struct RenderResources
 {
-    void createTexture(filament::Engine* engine, uint32_t width, uint32_t height) {
-        mTexture = Texture::Builder()
-            .width(width)
-            .height(height)
-            .levels(1)
-            .sampler(Texture::Sampler::SAMPLER_2D)
-            .format(Texture::InternalFormat::RGBA8)
-            .usage(Texture::Usage::COLOR_ATTACHMENT | Texture::Usage::BLIT_SRC)
-            .build(*engine);
-    }
-
-    std::function<void(filament::Texture*)> mCallback = nullptr;
+    filament::View* mView = nullptr;
+    filament::RenderTarget* mRenderTarget = nullptr;
+    filament::Scene* mScene = nullptr;
     filament::Texture* mTexture = nullptr;
+
+    // Callback to invoke once readPixels has populated the output buffer. Takes ownership of the
+    // RenderResources*; the user must call destroyRenderResources on it eventually.
+    std::function<void(RenderResources*)> mCompletionCallback;
 };
 
 RenderManager::RenderManager()
@@ -120,39 +125,54 @@ void RenderManager::render(
     uint32_t height,
     std::span<filament::gltfio::FilamentAsset*> assets,
     std::span<uint8_t> output,
-    std::function<void(filament::Texture*)> callback) {
+    std::function<void(RenderResources*)> callback) {
     verifyOnEngineThread();
 
-    RenderResult* result = new RenderResult();
-    result->mCallback = callback;
+    if (output.size() != backend::PixelBufferDescriptor::computeDataSize(
+        backend::PixelDataFormat::RGBA,
+        backend::PixelDataType::UBYTE,
+        width,
+        height,
+        1)) {
+        throw PixelBufferWrongSizeException();
+    }
 
-    View* view = mEngine->createView();
-    scope_exit viewCleanup([this, view]() {
-        mEngine->destroy(view);
+    // Allocate per-render Filament resources. These must outlive the GPU work that uses them, so
+    // ownership is transferred to the readPixels callback on success. If we throw on the way to
+    // readPixels, the scope_exit below tears them down synchronously.
+    auto* resources = new RenderResources();
+    resources->mCompletionCallback = std::move(callback);
+
+    scope_exit resourcesCleanup([this, resources]() {
+        destroyRenderResources(resources);
     });
 
-    result->createTexture(mEngine, width, height);
+    resources->mView = mEngine->createView();
 
-    RenderTarget* renderTarget = RenderTarget::Builder()
-        .texture(RenderTarget::AttachmentPoint::COLOR, result->mTexture)
+    resources->mTexture = Texture::Builder()
+        .width(width)
+        .height(height)
+        .levels(1)
+        .sampler(Texture::Sampler::SAMPLER_2D)
+        .format(Texture::InternalFormat::RGBA8)
+        .usage(Texture::Usage::COLOR_ATTACHMENT | Texture::Usage::BLIT_SRC)
         .build(*mEngine);
-    scope_exit renderTargetCleanup([this, renderTarget]() {
-        mEngine->destroy(renderTarget);
-    });
 
-    view->setRenderTarget(renderTarget);
-    view->setBlendMode(View::BlendMode::TRANSLUCENT);
-    Scene* scene = mEngine->createScene();
-    scope_exit sceneCleanup([this, scene]() {
-        mEngine->destroy(scene);
-    });
-    view->setViewport({ 0, 0, width, height });
-    view->setScene(scene);
+    resources->mRenderTarget = RenderTarget::Builder()
+        .texture(RenderTarget::AttachmentPoint::COLOR, resources->mTexture)
+        .build(*mEngine);
+
+    resources->mView->setRenderTarget(resources->mRenderTarget);
+    resources->mView->setBlendMode(View::BlendMode::TRANSLUCENT);
+
+    resources->mScene = mEngine->createScene();
+    resources->mView->setViewport({ 0, 0, width, height });
+    resources->mView->setScene(resources->mScene);
 
     gltfio::FilamentAsset::Entity cameraEntity;
 
     for (gltfio::FilamentAsset* asset : assets) {
-        scene->addEntities(asset->getEntities(), asset->getEntityCount());
+        resources->mScene->addEntities(asset->getEntities(), asset->getEntityCount());
 
         size_t cameraEntityCount = asset->getCameraEntityCount();
         if ((cameraEntityCount > 0 && cameraEntity) || cameraEntityCount > 1) {
@@ -168,18 +188,9 @@ void RenderManager::render(
     }
 
     filament::Camera* camera = mEngine->getCameraComponent(cameraEntity);
-    view->setCamera(camera);
+    resources->mView->setCamera(camera);
 
-    mRenderer->renderStandaloneView(view);
-
-    if (output.size() != backend::PixelBufferDescriptor::computeDataSize(
-        backend::PixelDataFormat::RGBA,
-        backend::PixelDataType::UBYTE,
-        width,
-        height,
-        1)) {
-        throw PixelBufferWrongSizeException();
-    }
+    mRenderer->renderStandaloneView(resources->mView);
 
     backend::PixelBufferDescriptor pixelBufferDescriptor(
         output.data(),
@@ -188,26 +199,57 @@ void RenderManager::render(
         backend::PixelDataType::UBYTE,
         &sImmediateCallbackHandler,
         [](void*, size_t, void* user) {
-            auto pResult = reinterpret_cast<RenderResult*>(user);
+            // Runs on Filament's driver service thread once readback into the caller-provided
+            // pixel buffer is complete. Ownership of RenderResources is now the user's; their
+            // callback is expected to schedule destroyRenderResources back onto the engine thread.
+            auto* pResources = reinterpret_cast<RenderResources*>(user);
 
-            std::function<void(filament::Texture*)> callback = std::move(pResult->mCallback);
+            std::function<void(RenderResources*)> callback = std::move(pResources->mCompletionCallback);
 
             if (callback) {
-                callback(pResult->mTexture);
+                callback(pResources);
             }
-
-            delete pResult;
+            else {
+                // No completion callback was supplied; destroying engine objects off-thread is
+                // unsafe, so we leak rather than crash. In practice the API never allows a null
+                // callback.
+            }
         },
-        result);
+        resources);
 
-    mRenderer->readPixels(view->getRenderTarget(), 0, 0, width, height, std::move(pixelBufferDescriptor));
+    mRenderer->readPixels(resources->mView->getRenderTarget(), 0, 0, width, height, std::move(pixelBufferDescriptor));
+
+    // Ownership of resources has been handed to the readPixels callback. Disarm the cleanup so we
+    // don't destroy them out from under the GPU.
+    resourcesCleanup.disarm();
+
     mEngine->flush();
 }
 
-void RenderManager::destroyTexture(filament::Texture* texture) {
+void RenderManager::destroyRenderResources(RenderResources* resources) {
     verifyOnEngineThread();
 
-    mEngine->destroy(texture);
+    if (!resources) {
+        return;
+    }
+
+    // Order is largely interchangeable since the GPU is guaranteed to be done with these objects by
+    // the time we reach here (either readPixels has fired, or we are in the synchronous error path
+    // and renderStandaloneView was never called). Destroy from "outer" to "inner" anyway.
+    if (resources->mScene) {
+        mEngine->destroy(resources->mScene);
+    }
+    if (resources->mView) {
+        mEngine->destroy(resources->mView);
+    }
+    if (resources->mRenderTarget) {
+        mEngine->destroy(resources->mRenderTarget);
+    }
+    if (resources->mTexture) {
+        mEngine->destroy(resources->mTexture);
+    }
+
+    delete resources;
 }
 
 void RenderManager::verifyOnEngineThread() {
