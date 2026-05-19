@@ -163,12 +163,6 @@ namespace GLTF2Image
 
         private Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, RenderResult result)
         {
-            nint[] handles = new nint[assets.Count];
-            for (int i = 0; i < assets.Count; i++)
-            {
-                handles[i] = assets[i]._handle;
-            }
-
             _workQueue.Add(() =>
             {
                 // Load assets
