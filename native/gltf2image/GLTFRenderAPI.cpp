@@ -18,6 +18,10 @@ ApiResult apiResultFromException(std::exception_ptr exception)
     catch (PixelBufferWrongSizeException) {
         return ApiResult::PixelBufferWrongSize;
     }
+    catch (MissingCallbackArgumentException) {
+        // No corresponding API error code because this error can't be hit by the caller: it's a programming error on the native side.
+        return ApiResult::UnknownError;
+    }
     catch (...) {
         return ApiResult::UnknownError;
     }

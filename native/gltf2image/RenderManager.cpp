@@ -57,14 +57,11 @@ struct scope_exit
 // at that point ownership transfers to the user, who must hand the pointer back to
 // RenderManager::destroyRenderResources on the engine thread.
 struct RenderResources
-{
+{   
     filament::View* mView = nullptr;
     filament::RenderTarget* mRenderTarget = nullptr;
     filament::Scene* mScene = nullptr;
     filament::Texture* mTexture = nullptr;
-
-    // Callback to invoke once readPixels has populated the output buffer. Takes ownership of the
-    // RenderResources*; the user must call destroyRenderResources on it eventually.
     std::function<void(RenderResources*)> mCompletionCallback;
 };
 
@@ -128,6 +125,10 @@ void RenderManager::render(
     std::function<void(RenderResources*)> callback) {
     verifyOnEngineThread();
 
+    if (!callback) {
+        throw MissingCallbackArgumentException();
+    }
+
     if (output.size() != backend::PixelBufferDescriptor::computeDataSize(
         backend::PixelDataFormat::RGBA,
         backend::PixelDataType::UBYTE,
@@ -137,9 +138,6 @@ void RenderManager::render(
         throw PixelBufferWrongSizeException();
     }
 
-    // Allocate per-render Filament resources. These must outlive the GPU work that uses them, so
-    // ownership is transferred to the readPixels callback on success. If we throw on the way to
-    // readPixels, the scope_exit below tears them down synchronously.
     auto* resources = new RenderResources();
     resources->mCompletionCallback = std::move(callback);
 
@@ -206,14 +204,7 @@ void RenderManager::render(
 
             std::function<void(RenderResources*)> callback = std::move(pResources->mCompletionCallback);
 
-            if (callback) {
-                callback(pResources);
-            }
-            else {
-                // No completion callback was supplied; destroying engine objects off-thread is
-                // unsafe, so we leak rather than crash. In practice the API never allows a null
-                // callback.
-            }
+            callback(pResources);
         },
         resources);
 
@@ -233,9 +224,8 @@ void RenderManager::destroyRenderResources(RenderResources* resources) {
         return;
     }
 
-    // Order is largely interchangeable since the GPU is guaranteed to be done with these objects by
-    // the time we reach here (either readPixels has fired, or we are in the synchronous error path
-    // and renderStandaloneView was never called). Destroy from "outer" to "inner" anyway.
+    // Destroy from "outer" to "inner", although the order largely doesn't matter since the GPU is done with
+    // these objects by the time we reach here.
     if (resources->mScene) {
         mEngine->destroy(resources->mScene);
     }

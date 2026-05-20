@@ -25,11 +25,9 @@ struct NoCamerasFoundException {};
 struct TooManyCamerasException {};
 struct WrongThreadException {};
 struct PixelBufferWrongSizeException {};
+struct MissingCallbackArgumentException {};
 
-// Opaque handle returned to callers in the render completion callback. Holds the per-render Filament
-// resources (View, RenderTarget, Scene, Texture) that must outlive the GPU work for a render. The
-// caller is responsible for invoking RenderManager::destroyRenderResources on the engine thread once
-// it is finished with the rendered pixel data, which destroys those resources together.
+// Opaque handle for the per-render Filament resources that must outlive the GPU work for a render.
 struct RenderResources;
 
 struct RenderManager
@@ -37,18 +35,20 @@ struct RenderManager
     RenderManager();
     ~RenderManager();
 
+    // Loads a GLTF asset from memory. The caller is responsible for calling destroyGLTFAsset()
+    // when the asset is no longer needed. Must be called on the engine thread.
     filament::gltfio::FilamentAsset* loadGLTFAsset(uint8_t* data, size_t size);
+
+    // Destroys a GLTF asset previously returned by loadGLTFAsset(). Must be called on the engine thread.
     void destroyGLTFAsset(filament::gltfio::FilamentAsset* asset);
 
-    // Submits a render. The callback is invoked once the pixel readback has completed and the
-    // output buffer has been populated. The callback receives an opaque RenderResources* that the
+    // Submits a render. Must be called on the engine thread. 
+    // The callback is invoked once the pixel readback has completed and the output buffer has been
+    // populated. The callback occurs on an arbitrary thread and receives a RenderResources* that the
     // caller must later hand back to destroyRenderResources(), on the engine thread, in order to
-    // release the per-render Filament objects. Destroying those objects before the readback fires
-    // would race with the GPU.
-    //
-    // If render() throws (e.g. NoCamerasFoundException, PixelBufferWrongSizeException), any
-    // resources allocated up to that point are destroyed synchronously and the callback is NOT
-    // invoked.
+    // release the per-render Filament objects. If render() throws (e.g. NoCamerasFoundException,
+    // PixelBufferWrongSizeException), any resources allocated up to that point are destroyed synchronously
+    // and the callback is not invoked.
     void render(
         uint32_t width,
         uint32_t height,
@@ -56,11 +56,8 @@ struct RenderManager
         std::span<uint8_t> output,
         std::function<void(RenderResources*)> callback);
 
-    // Destroys all Filament resources associated with a single render (View, RenderTarget, Scene,
-    // and the offscreen color Texture) and frees the RenderResources object itself. Must be called
-    // on the engine thread, and only after the render completion callback has fired (or after
-    // render() has thrown, in which case the resources have already been destroyed and the caller
-    // never sees the RenderResources*).
+    // Frees the RenderResources object. Must be called on the engine thread, after the render completion
+    // callback has fired.
     void destroyRenderResources(RenderResources* resources);
 
 private:
