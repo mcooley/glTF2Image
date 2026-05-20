@@ -197,7 +197,7 @@ namespace GLTF2Image
                 nint[] handles = new nint[assets.Count];
                 for (int i = 0; i < assets.Count; i++)
                 {
-                    if (!assets[i].IsLoaded)
+                    if (assets[i]._handle == 0)
                     {
                         nint assetHandle;
                         using (var dataPin = assets[i]._data.Pin())
