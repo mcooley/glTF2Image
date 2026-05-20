@@ -127,30 +127,23 @@ namespace GLTF2Image
                 return GCHandle.Alloc(this);
             }
 
-            // Retrieves the RenderResult from a GCHandle and frees the handle. Does NOT dispose the
-            // pinned result buffer — callers continue to need that buffer alive until cleanup runs.
             public static RenderResult FromGCHandle(GCHandle handle)
             {
                 RenderResult result = (RenderResult)handle.Target!;
                 handle.Free();
+
+                result._pinnedResult.Dispose();
+
                 return result;
             }
 
             public void SetException(Exception exception)
             {
-                // Need to un-pin before completing the Task to ensure that if the caller passed in their own Memory<byte> for the output,
-                // it's unpinned before they try to free it or access it again.
-                _pinnedResult.Dispose();
                 _callback.SetException(exception);
             }
 
             public void SetComplete(nint renderResources)
             {
-                // Need to un-pin before completing the Task to ensure that if the caller passed in their own Memory<byte> for the output,
-                // it's unpinned before they try to free it or access it again.
-                _pinnedResult.Dispose();
-                _callback.SetResult(_result);
-
                 _renderer._workQueue.Add(
                     () =>
                     {
@@ -166,6 +159,8 @@ namespace GLTF2Image
                         }
                     },
                     highPriority: true); // Jump ahead of other rendering tasks to free GPU/CPU resources promptly.
+
+                _callback.SetResult(_result);
             }
 
             private void UnloadAssets()
@@ -237,6 +232,7 @@ namespace GLTF2Image
                 // the exception.
                 unsafe
                 {
+                    GCHandle resultHandle = result.ToGCHandle();
                     uint nativeApiResult = NativeMethods.render(
                         _handle,
                         width,
@@ -246,10 +242,11 @@ namespace GLTF2Image
                         result.ResultBufferAddress(),
                         result.ResultBufferLength(),
                         &RenderCallback,
-                        GCHandle.ToIntPtr(result.ToGCHandle()));
+                        GCHandle.ToIntPtr(resultHandle));
                     if (nativeApiResult != 0)
                     {
-                        result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                        RenderResult unpinnedResult = RenderResult.FromGCHandle(resultHandle); // Ensure the GCHandle is freed to avoid leaks, even in error cases
+                        unpinnedResult.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
                         return;
                     }
                 }
