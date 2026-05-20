@@ -150,33 +150,27 @@ namespace GLTF2Image
                         try
                         {
                             NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyRenderResources(_renderer._handle, renderResources));
-                            UnloadAssets();
+
+                            // Decrement the pending render count for each asset now that the render is complete.
+                            // Do this before starting to destroy assets just in case DestroyGLTFAsset throws.
+                            for (int i = 0; i < _assets.Count; i++)
+                            {
+                                _assets[i]._pendingRenderCount--;
+                            }
+
+                            for (int i = 0; i < _assets.Count; i++)
+                            {
+                                _renderer.DestroyGLTFAsset(_assets[i]);
+                            }
                         }
                         catch (Exception ex)
                         {
-                            _pinnedResult.Dispose();
                             _callback.SetException(ex);
                         }
                     },
                     highPriority: true); // Jump ahead of other rendering tasks to free GPU/CPU resources promptly.
 
                 _callback.SetResult(_result);
-            }
-
-            private void UnloadAssets()
-            {
-                // Assets will be unloaded eventually when the GLTFAsset object is destroyed, but
-                // it can be more efficient to unload eagerly if we know the asset won't be needed
-                // again. Skip assets the caller marked as persistent or that aren't currently
-                // loaded (the caller may have disposed them while the render was in flight).
-                for (int i = 0; i < _assets.Count; i++)
-                {
-                    if (_assets[i].IsLoaded && !_assets[i]._keepLoadedForMultipleRenders)
-                    {
-                        NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_renderer._handle, _assets[i]._handle));
-                        _assets[i]._handle = 0;
-                    }
-                }
             }
 
             private static int GetRequiredResultLength(uint width, uint height)
@@ -244,6 +238,13 @@ namespace GLTF2Image
                         return;
                     }
                 }
+
+                // Native render submission succeeded. The assets are now referenced by a live Filament Scene
+                // until cleanup runs.
+                for (int i = 0; i < assets.Count; i++)
+                {
+                    assets[i]._pendingRenderCount++;
+                }
             });
 
             return result.Task;
@@ -287,15 +288,26 @@ namespace GLTF2Image
 
         internal async Task DestroyGLTFAssetAsync(GLTFAsset gltfAsset)
         {
+            if (gltfAsset._handle == 0)
+            {
+                return;
+            }
+
             await _workQueue.RunAsync(() =>
             {
-                if (gltfAsset.IsLoaded)
-                {
-                    NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_handle, gltfAsset._handle));
-                    gltfAsset._handle = 0;
-                }
+                DestroyGLTFAsset(gltfAsset);
             },
             highPriority: true); // Jump ahead of other rendering tasks to avoid holding onto memory for too long
+        }
+
+        // Must be called on the engine thread (the work queue worker).
+        internal void DestroyGLTFAsset(GLTFAsset asset)
+        {
+            if (asset._handle != 0 && asset._pendingRenderCount == 0 && !asset._keepLoadedWhenNoPendingRender)
+            {
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_handle, asset._handle));
+                asset._handle = 0;
+            }
         }
     }
 }
