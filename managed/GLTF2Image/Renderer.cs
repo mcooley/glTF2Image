@@ -83,22 +83,25 @@ namespace GLTF2Image
         private sealed class RenderResult
         {
             private readonly Renderer _renderer;
+            private readonly IList<GLTFAsset> _assets;
             private readonly Memory<byte> _result;
             private MemoryHandle _pinnedResult;
             private readonly CallbackContext<Memory<byte>> _callback = new();
 
             public Task<Memory<byte>> Task => _callback.Task;
 
-            public RenderResult(Renderer renderer, uint width, uint height)
+            public RenderResult(Renderer renderer, IList<GLTFAsset> assets, uint width, uint height)
             {
                 _renderer = renderer;
+                _assets = assets;
                 _result = new byte[GetRequiredResultLength(width, height)];
                 _pinnedResult = _result.Pin();
             }
 
-            public RenderResult(Renderer renderer, uint width, uint height, Memory<byte> result)
+            public RenderResult(Renderer renderer, IList<GLTFAsset> assets, uint width, uint height, Memory<byte> result)
             {
                 _renderer = renderer;
+                _assets = assets;
                 int requiredLength = GetRequiredResultLength(width, height);
                 if (result.Length != requiredLength)
                 {
@@ -139,9 +142,34 @@ namespace GLTF2Image
                 _callback.SetException(exception);
             }
 
-            public void SetComplete(nint texture)
+            public void SetComplete(nint renderResources)
             {
-                _renderer.QueueDestroyTexture(texture);
+                _renderer._workQueue.Add(
+                    () =>
+                    {
+                        try
+                        {
+                            NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyRenderResources(_renderer._handle, renderResources));
+
+                            // Decrement the pending render count for each asset now that the render is complete.
+                            // Do this before starting to destroy assets just in case DestroyGLTFAsset throws.
+                            for (int i = 0; i < _assets.Count; i++)
+                            {
+                                _assets[i]._pendingRenderCount--;
+                            }
+
+                            for (int i = 0; i < _assets.Count; i++)
+                            {
+                                _renderer.DestroyGLTFAsset(_assets[i]);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _callback.SetException(ex);
+                        }
+                    },
+                    highPriority: true); // Jump ahead of other rendering tasks to free GPU/CPU resources promptly.
+
                 _callback.SetResult(_result);
             }
 
@@ -153,12 +181,12 @@ namespace GLTF2Image
 
         public Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets)
         {
-            return RenderAsync(width, height, assets, new RenderResult(this, width, height));
+            return RenderAsync(width, height, assets, new RenderResult(this, assets, width, height));
         }
 
         public Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, Memory<byte> outputMemory)
         {
-            return RenderAsync(width, height, assets, new RenderResult(this, width, height, outputMemory));
+            return RenderAsync(width, height, assets, new RenderResult(this, assets, width, height, outputMemory));
         }
 
         private Task<Memory<byte>> RenderAsync(uint width, uint height, IList<GLTFAsset> assets, RenderResult result)
@@ -169,7 +197,7 @@ namespace GLTF2Image
                 nint[] handles = new nint[assets.Count];
                 for (int i = 0; i < assets.Count; i++)
                 {
-                    if (!assets[i].IsLoaded)
+                    if (assets[i]._handle == 0)
                     {
                         nint assetHandle;
                         using (var dataPin = assets[i]._data.Pin())
@@ -190,9 +218,9 @@ namespace GLTF2Image
                     handles[i] = assets[i]._handle;
                 }
 
-                // Render
                 unsafe
                 {
+                    GCHandle resultHandle = result.ToGCHandle();
                     uint nativeApiResult = NativeMethods.render(
                         _handle,
                         width,
@@ -202,29 +230,20 @@ namespace GLTF2Image
                         result.ResultBufferAddress(),
                         result.ResultBufferLength(),
                         &RenderCallback,
-                        GCHandle.ToIntPtr(result.ToGCHandle()));
+                        GCHandle.ToIntPtr(resultHandle));
                     if (nativeApiResult != 0)
                     {
-                        result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
+                        RenderResult unpinnedResult = RenderResult.FromGCHandle(resultHandle); // Ensure the GCHandle is freed to avoid leaks, even in error cases
+                        unpinnedResult.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
                         return;
                     }
                 }
 
-                // Unload assets
-                // Assets will be unloaded eventually when the GLTFAsset object is destroyed, but it can be more
-                // efficient to unload eagerly if we know that the asset won't be needed again.
+                // Native render submission succeeded. The assets are now referenced by a live Filament Scene
+                // until cleanup runs.
                 for (int i = 0; i < assets.Count; i++)
                 {
-                    if (assets[i].IsLoaded && !assets[i]._keepLoadedForMultipleRenders)
-                    {
-                        uint nativeApiResult = NativeMethods.destroyGLTFAsset(_handle, assets[i]._handle);
-                        if (nativeApiResult != 0)
-                        {
-                            result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
-                            return;
-                        }
-                        assets[i]._handle = 0;
-                    }
+                    assets[i]._pendingRenderCount++;
                 }
             });
 
@@ -232,7 +251,7 @@ namespace GLTF2Image
         }
 
         [UnmanagedCallersOnly]
-        private static void RenderCallback(uint nativeApiResult, nint texture, nint user)
+        private static void RenderCallback(uint nativeApiResult, nint renderResources, nint user)
         {
             GCHandle resultHandle = GCHandle.FromIntPtr(user);
             RenderResult result = RenderResult.FromGCHandle(resultHandle);
@@ -243,7 +262,7 @@ namespace GLTF2Image
             }
             else
             {
-                result.SetComplete(texture);
+                result.SetComplete(renderResources);
             }
         }
 
@@ -269,24 +288,26 @@ namespace GLTF2Image
 
         internal async Task DestroyGLTFAssetAsync(GLTFAsset gltfAsset)
         {
+            if (gltfAsset._handle == 0)
+            {
+                return;
+            }
+
             await _workQueue.RunAsync(() =>
             {
-                if (gltfAsset.IsLoaded)
-                {
-                    NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_handle, gltfAsset._handle));
-                    gltfAsset._handle = 0;
-                }
+                DestroyGLTFAsset(gltfAsset);
             },
             highPriority: true); // Jump ahead of other rendering tasks to avoid holding onto memory for too long
         }
 
-        internal void QueueDestroyTexture(nint nativeTexture)
+        // Must be called on the engine thread (the work queue worker).
+        internal void DestroyGLTFAsset(GLTFAsset asset)
         {
-            _workQueue.Add(() =>
+            if (asset._handle != 0 && asset._pendingRenderCount == 0 && !asset._keepLoadedWhenNoPendingRender)
             {
-                NativeMethods.destroyTexture(_handle, nativeTexture);
-            },
-            highPriority: true); // Jump ahead of other rendering tasks to avoid holding onto memory for too long
+                NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyGLTFAsset(_handle, asset._handle));
+                asset._handle = 0;
+            }
         }
     }
 }

@@ -18,6 +18,10 @@ ApiResult apiResultFromException(std::exception_ptr exception)
     catch (PixelBufferWrongSizeException) {
         return ApiResult::PixelBufferWrongSize;
     }
+    catch (MissingCallbackArgumentException) {
+        // No corresponding API error code because this error can't be hit by the caller: it's a programming error on the native side.
+        return ApiResult::UnknownError;
+    }
     catch (...) {
         return ApiResult::UnknownError;
     }
@@ -79,7 +83,7 @@ API_EXPORT ApiResult destroyGLTFAsset(void* renderManager, void* gltfAsset) {
     return ApiResult::Success;
 }
 
-typedef void (*RenderCallback)(ApiResult apiResult, void* texture, void* user);
+typedef void (*RenderCallback)(ApiResult apiResult, void* renderResources, void* user);
 
 API_EXPORT ApiResult render(
     void* renderManager,
@@ -101,8 +105,8 @@ API_EXPORT ApiResult render(
             height,
             assetsSpan,
             outputSpan,
-            [callback, user](filament::Texture* texture) {
-                callback(ApiResult::Success, reinterpret_cast<void*>(texture), user);
+            [callback, user](RenderResources* resources) {
+                callback(ApiResult::Success, reinterpret_cast<void*>(resources), user);
             });
     }
     catch (...) {
@@ -112,12 +116,12 @@ API_EXPORT ApiResult render(
     return ApiResult::Success;
 }
 
-API_EXPORT ApiResult destroyTexture(void* renderManager, void* texture) {
+API_EXPORT ApiResult destroyRenderResources(void* renderManager, void* renderResources) {
     try {
         RenderManager* pRenderManager = reinterpret_cast<RenderManager*>(renderManager);
-        filament::Texture* pTexture = reinterpret_cast<filament::Texture*>(texture);
+        RenderResources* pResources = reinterpret_cast<RenderResources*>(renderResources);
 
-        pRenderManager->destroyTexture(pTexture);
+        pRenderManager->destroyRenderResources(pResources);
     }
     catch (...) {
         return apiResultFromException(std::current_exception());

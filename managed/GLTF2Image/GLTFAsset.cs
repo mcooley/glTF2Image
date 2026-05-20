@@ -7,17 +7,19 @@ namespace GLTF2Image
     {
         private readonly Renderer _renderer;
         internal ReadOnlyMemory<byte> _data;
-        internal readonly bool _keepLoadedForMultipleRenders;
+        internal bool _keepLoadedWhenNoPendingRender;
 
         internal nint _handle;
 
-        internal bool IsLoaded => _handle != 0;
+        // Number of in-flight render submissions that have loaded this asset's entities into a live Filament Scene
+        // and are still waiting for cleanup to run. Mutated only on the engine thread (the work queue worker).
+        internal int _pendingRenderCount;
 
         internal GLTFAsset(Renderer renderer, ReadOnlyMemory<byte> data, bool keepLoadedForMultipleRenders)
         {
             _renderer = renderer;
             _data = data;
-            _keepLoadedForMultipleRenders = keepLoadedForMultipleRenders;
+            _keepLoadedWhenNoPendingRender = keepLoadedForMultipleRenders;
         }
 
         ~GLTFAsset()
@@ -32,10 +34,8 @@ namespace GLTF2Image
 
         public async ValueTask DisposeAsync()
         {
-            if (IsLoaded)
-            {
-                await _renderer.DestroyGLTFAssetAsync(this);
-            }
+            _keepLoadedWhenNoPendingRender = false;
+            await _renderer.DestroyGLTFAssetAsync(this);
             GC.SuppressFinalize(this);
         }
     }
