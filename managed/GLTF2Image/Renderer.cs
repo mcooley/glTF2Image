@@ -213,7 +213,7 @@ namespace GLTF2Image
                                 uint nativeApiResult = NativeMethods.loadGLTFAsset(_handle, (byte*)dataPin.Pointer, (uint)assets[i]._data.Length, out assetHandle);
                                 if (nativeApiResult != 0)
                                 {
-                                    result.SetSynchronousException(NativeMethods.GetNativeApiException(nativeApiResult));
+                                    result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
                                     return;
                                 }
                             }
@@ -224,12 +224,6 @@ namespace GLTF2Image
                     handles[i] = assets[i]._handle;
                 }
 
-                // Submit render. On success, ownership of per-render resources and the pinned output
-                // buffer transfers to the render completion callback, which will schedule cleanup
-                // (destroyRenderResources + asset unload + Task completion) on the engine thread
-                // after readPixels has populated the buffer. On synchronous failure, the native side
-                // has already torn down any partially-allocated resources; we only need to surface
-                // the exception.
                 unsafe
                 {
                     GCHandle resultHandle = result.ToGCHandle();
