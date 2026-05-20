@@ -136,34 +136,28 @@ namespace GLTF2Image
                 return result;
             }
 
-            // Synchronous error path: render submission failed before any GPU work was queued, so
-            // there are no per-render Filament resources to destroy and the readPixels callback will
-            // not fire. We do still need to release the pinned output buffer. Called on the engine
-            // thread (from inside the render submission work item).
-            public void SetSynchronousException(Exception exception)
+            public void SetException(Exception exception)
             {
+                // Need to un-pin before completing the Task to ensure that if the caller passed in their own Memory<byte> for the output,
+                // it's unpinned before they try to free it or access it again.
                 _pinnedResult.Dispose();
                 _callback.SetException(exception);
             }
 
-            // Success path from the render completion callback (driver thread). Queues a cleanup
-            // work item on the engine thread that destroys the per-render Filament resources,
-            // unloads any non-persistent assets, releases the pinned output buffer, and finally
-            // completes the user-facing Task. Running cleanup before completion guarantees that
-            // when callers await RenderAsync, all GPU work for the render is done and any per-
-            // request assets they own (e.g. wrapped around a MemoryStream they are about to
-            // dispose) are no longer referenced by the renderer.
-            public void ScheduleCompletion(nint renderResources)
+            public void SetComplete(nint renderResources)
             {
+                // Need to un-pin before completing the Task to ensure that if the caller passed in their own Memory<byte> for the output,
+                // it's unpinned before they try to free it or access it again.
+                _pinnedResult.Dispose();
+                _callback.SetResult(_result);
+
                 _renderer._workQueue.Add(
                     () =>
                     {
                         try
                         {
                             NativeMethods.ThrowIfNativeApiFailed(NativeMethods.destroyRenderResources(_renderer._handle, renderResources));
-                            UnloadTransientAssets();
-                            _pinnedResult.Dispose();
-                            _callback.SetResult(_result);
+                            UnloadAssets();
                         }
                         catch (Exception ex)
                         {
@@ -174,23 +168,7 @@ namespace GLTF2Image
                     highPriority: true); // Jump ahead of other rendering tasks to free GPU/CPU resources promptly.
             }
 
-            // Asynchronous error path (currently unreachable in practice — the native side reports
-            // failures synchronously from render() and never invokes the completion callback with
-            // an error). Defensive: schedule cleanup that releases the buffer and reports the
-            // exception. No render resources to destroy since the native side would have torn them
-            // down before signaling failure.
-            public void ScheduleException(Exception exception)
-            {
-                _renderer._workQueue.Add(
-                    () =>
-                    {
-                        _pinnedResult.Dispose();
-                        _callback.SetException(exception);
-                    },
-                    highPriority: true);
-            }
-
-            private void UnloadTransientAssets()
+            private void UnloadAssets()
             {
                 // Assets will be unloaded eventually when the GLTFAsset object is destroyed, but
                 // it can be more efficient to unload eagerly if we know the asset won't be needed
@@ -271,7 +249,7 @@ namespace GLTF2Image
                         GCHandle.ToIntPtr(result.ToGCHandle()));
                     if (nativeApiResult != 0)
                     {
-                        result.SetSynchronousException(NativeMethods.GetNativeApiException(nativeApiResult));
+                        result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
                         return;
                     }
                 }
@@ -283,19 +261,16 @@ namespace GLTF2Image
         [UnmanagedCallersOnly]
         private static void RenderCallback(uint nativeApiResult, nint renderResources, nint user)
         {
-            // Runs on Filament's driver service thread once readPixels has populated the output
-            // buffer. Must not touch any Filament Engine state here — instead, defer all cleanup
-            // back to the engine thread (the work queue).
             GCHandle resultHandle = GCHandle.FromIntPtr(user);
             RenderResult result = RenderResult.FromGCHandle(resultHandle);
 
             if (nativeApiResult != 0)
             {
-                result.ScheduleException(NativeMethods.GetNativeApiException(nativeApiResult));
+                result.SetException(NativeMethods.GetNativeApiException(nativeApiResult));
             }
             else
             {
-                result.ScheduleCompletion(renderResources);
+                result.SetComplete(renderResources);
             }
         }
 
