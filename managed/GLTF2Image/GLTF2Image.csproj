@@ -18,12 +18,28 @@
       <PackagePath>runtimes/win-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="./../../native/out/win-arm64-debug/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64-debug')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/win-arm64-debug/vk_swiftshader.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64-debug')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="./../../native/out/linux-x64-debug/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64-debug')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/linux-x64-debug/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64-debug')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64-debug/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64-debug')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64-debug/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64-debug')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -36,12 +52,28 @@
       <PackagePath>runtimes/win-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="./../../native/out/win-arm64/gltf2image_native.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/win-arm64/vk_swiftshader.dll" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/win-arm64')">
+      <PackagePath>runtimes/win-arm64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="./../../native/out/linux-x64/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="./../../native/out/linux-x64/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-x64')">
       <PackagePath>runtimes/linux-x64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64/libgltf2image_native.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="./../../native/out/linux-arm64/libvk_swiftshader.so" Condition="'$(GLTF2ImageRequireAllPlatforms)' != 'false' Or Exists('./../../native/out/linux-arm64')">
+      <PackagePath>runtimes/linux-arm64/native</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

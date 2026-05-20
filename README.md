@@ -40,4 +40,4 @@ Filament has good support for many glTF features and extensions. There are a sma
 ## Requirements
 - .NET 8 or later
 - Windows or Linux
-- x64
+- x64 or ARM64
