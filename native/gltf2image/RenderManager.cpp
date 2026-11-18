@@ -71,6 +71,8 @@ RenderManager::RenderManager()
         .backend(backend::Backend::VULKAN)
         .build();
     mRenderer = mEngine->createRenderer();
+    // The headless swap chain drives the frame lifecycle; each view has a separate output target.
+    mSwapChain = mEngine->createSwapChain(1, 1);
     mRenderer->setClearOptions(Renderer::ClearOptions{
         .clear = true
         });
@@ -95,6 +97,7 @@ RenderManager::~RenderManager() {
     delete mMaterialProvider;
 
     mEngine->destroy(mRenderer);
+    mEngine->destroy(mSwapChain);
     Engine::destroy(&mEngine);
 }
 
@@ -188,8 +191,18 @@ void RenderManager::render(
     filament::Camera* camera = mEngine->getCameraComponent(cameraEntity);
     resources->mView->setCamera(camera);
 
-    mRenderer->renderStandaloneView(resources->mView);
+    // endFrame collects destroyed components and advances the entity ID recycling epoch.
+    // beginFrame's skip hint is optional: an offline render must always produce its requested image.
+    mRenderer->beginFrame(mSwapChain);
+    try {
+        mRenderer->render(resources->mView);
+    } catch (...) {
+        mRenderer->endFrame();
+        throw;
+    }
+    mRenderer->endFrame();
 
+    // Read the explicit target, not the swap chain, after completing the frame successfully.
     backend::PixelBufferDescriptor pixelBufferDescriptor(
         output.data(),
         output.size(),

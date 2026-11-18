@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -89,6 +90,30 @@ namespace GLTF2Image.Tests
             }
 
             await Task.WhenAll(tasks);
+        }
+
+        [Fact]
+        public async Task RenderAsync_ReloadedAssetsRecycleEntityIds()
+        {
+            // Cross Filament's 17-bit entity index limit with only one scene's nodes live at a time.
+            var cameraScene = JsonNode.Parse(File.ReadAllText(Path.Join(TestDataPath, "orthographic_camera.gltf")))!;
+            var nodes = cameraScene["nodes"]!.AsArray();
+            var roots = cameraScene["scenes"]![0]!["nodes"]!.AsArray();
+            while (nodes.Count < 2048)
+            {
+                roots.Add(nodes.Count);
+                nodes.Add(new JsonObject());
+            }
+            var cameraData = Encoding.UTF8.GetBytes(cameraScene.ToJsonString());
+
+            using var renderer = await Renderer.CreateAsync();
+            using var triangle = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "red_triangle_unlit.gltf")), keepLoadedForMultipleRenders: true);
+            for (int i = 0; i < 65; i++)
+            {
+                using var camera = renderer.CreateGLTFAsset(cameraData);
+                var data = await renderer.RenderAsync(100, 100, new[] { camera, triangle });
+                Assert.True(GetPixelColor(data.Span, 100, 100, 60, 40).R > 240);
+            }
         }
 
         [Fact]

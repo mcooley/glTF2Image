@@ -1,9 +1,8 @@
 # On Ubuntu 22.04, make sure the following are installed:
 # cmake
-# clang
-# libc++-14-dev
-# libc++abi-14-dev
+# clang-18, libc++-18-dev, libc++abi-18-dev (from apt.llvm.org)
 # ninja-build
+# Set CC and CXX if clang and clang++ do not refer to this toolchain.
 
 # On Windows, run from "x64 Native Tools Command Prompt for VS 2022"
 
@@ -71,8 +70,8 @@ else:
 
 if build_os == 'linux':
     print('Using Clang...')
-    os.environ["CC"] = '/usr/bin/clang'
-    os.environ["CXX"] = '/usr/bin/clang++'
+    os.environ.setdefault("CC", '/usr/bin/clang')
+    os.environ.setdefault("CXX", '/usr/bin/clang++')
 
 native_dir = os.path.dirname(os.path.realpath(__file__))
 native_out_dir = native_dir + '/out/' + build_variant
@@ -106,7 +105,7 @@ print('Building Filament...')
 filament_dir = native_dir + '/filament'
 os.chdir(filament_dir)
 apply_patch('../filament_patches/0001-use-swiftshader-relative-path.patch')
-apply_patch('../filament_patches/0002-fix-backend-tests-for-vulkan-only-build.patch')
+apply_patch('../filament_patches/0002-include-texture-cache-definition.patch')
 filament_build_dir = filament_dir + '/out/' + build_variant
 ensure_directory_exists(filament_build_dir)
 os.chdir(filament_build_dir)
@@ -120,6 +119,7 @@ subprocess.run(['cmake', '../..',
     '-DFILAMENT_SUPPORTS_XLIB=OFF',
     '-DFILAMENT_SKIP_SAMPLES=ON',
     '-DFILAMENT_SKIP_SDL2=ON',
+    '-DFILAMENT_BUILD_TESTING=OFF',
     '-DFILAMENT_ENABLE_MATDBG=OFF',
     '-DUSE_STATIC_CRT=OFF'], check=True)
 subprocess.run(['ninja'], check=True)

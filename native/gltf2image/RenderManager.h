@@ -9,6 +9,7 @@ namespace filament
 {
     class Engine;
     class Renderer;
+    class SwapChain;
     class Texture;
 
     namespace gltfio
@@ -65,6 +66,7 @@ private:
 
     filament::Engine* mEngine = nullptr;
     filament::Renderer* mRenderer = nullptr;
+    filament::SwapChain* mSwapChain = nullptr;
 
     filament::gltfio::AssetLoader* mAssetLoader = nullptr;
     filament::gltfio::MaterialProvider* mMaterialProvider = nullptr;
