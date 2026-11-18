@@ -106,6 +106,7 @@ filament_dir = native_dir + '/filament'
 os.chdir(filament_dir)
 apply_patch('../filament_patches/0001-use-swiftshader-relative-path.patch')
 apply_patch('../filament_patches/0002-include-texture-cache-definition.patch')
+apply_patch('../filament_patches/0003-destroy-owned-instance-roots.patch')
 filament_build_dir = filament_dir + '/out/' + build_variant
 ensure_directory_exists(filament_build_dir)
 os.chdir(filament_build_dir)
