@@ -138,6 +138,9 @@ subprocess.run(['cmake', '../..',
     '-GNinja',
     f'-DCMAKE_BUILD_TYPE={build_type}'], check=True)
 subprocess.run(['ninja'], check=True)
+driver = 'vk_swiftshader.dll' if build_os == 'win' else 'libvk_swiftshader.so'
+shutil.copy2(os.path.join(native_out_dir, driver), gltf2image_build_dir)
+subprocess.run(['ctest', '--output-on-failure', '--no-tests=error'], check=True)
 if build_os == 'linux' and not is_debug:
     split_debug_symbols('libgltf2image_native.so')
 copy_matching_files(gltf2image_build_dir + '/*gltf2image_native.*', native_out_dir)

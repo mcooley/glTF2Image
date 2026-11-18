@@ -30,12 +30,9 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -stdlib=libc++")
 endif()
 
-add_library(gltf2image_native SHARED
-    GLTFRenderAPI.cpp
-    RenderManager.cpp
-    LogAPI.cpp)
-
-target_include_directories(gltf2image_native PRIVATE ${FILAMENT_INCLUDE_DIR})
+add_library(gltf2image_renderer STATIC RenderManager.cpp)
+set_target_properties(gltf2image_renderer PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(gltf2image_renderer PUBLIC ${FILAMENT_INCLUDE_DIR})
 
 find_library(FILAMENT_BACKEND backend ${FILAMENT_LIBS_DIR})
 find_library(FILAMENT_BLUEVK bluevk ${FILAMENT_LIBS_DIR})
@@ -54,28 +51,28 @@ find_library(FILAMENT_UBERZLIB uberzlib ${FILAMENT_LIBS_DIR})
 find_library(FILAMENT_UTILS utils ${FILAMENT_LIBS_DIR})
 find_library(FILAMENT_ZSTD zstd ${FILAMENT_LIBS_DIR})
 
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_BACKEND})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_BLUEVK})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_DRACODEC})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_FILABRIDGE})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_FILAFLAT})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_FILAMENT})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_GEOMETRY})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_GLTFIO_CORE})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_IBL})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_MESHOPTIMIZER})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_SMOL_V})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_STB})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_UBERARCHIVE})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_UBERZLIB})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_UTILS})
-target_link_libraries(gltf2image_native PRIVATE ${FILAMENT_ZSTD})
+target_link_libraries(gltf2image_renderer PRIVATE
+    ${FILAMENT_BACKEND} ${FILAMENT_BLUEVK} ${FILAMENT_DRACODEC}
+    ${FILAMENT_FILABRIDGE} ${FILAMENT_FILAFLAT} ${FILAMENT_FILAMENT}
+    ${FILAMENT_GEOMETRY} ${FILAMENT_GLTFIO_CORE} ${FILAMENT_IBL}
+    ${FILAMENT_MESHOPTIMIZER} ${FILAMENT_SMOL_V} ${FILAMENT_STB}
+    ${FILAMENT_UBERARCHIVE} ${FILAMENT_UBERZLIB} ${FILAMENT_UTILS} ${FILAMENT_ZSTD})
 
 if(WIN32)
-    target_link_libraries(gltf2image_native PRIVATE shlwapi opengl32)
+    target_link_libraries(gltf2image_renderer PRIVATE shlwapi opengl32)
 endif()
+
+add_library(gltf2image_native SHARED GLTFRenderAPI.cpp LogAPI.cpp)
+target_link_libraries(gltf2image_native PRIVATE gltf2image_renderer)
 
 if(NOT MSVC)
     target_link_options(gltf2image_native PRIVATE -static-libgcc -static-libstdc++)
     target_link_options(gltf2image_native PRIVATE "LINKER:--exclude-libs=ALL")
 endif()
+
+enable_testing()
+add_executable(asset_teardown_test tests/AssetTeardown.cpp)
+target_link_libraries(asset_teardown_test PRIVATE gltf2image_renderer)
+add_test(NAME RenderedAssetTeardown COMMAND asset_teardown_test
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../managed/GLTF2Image.Tests/TestData")
+set_tests_properties(RenderedAssetTeardown PROPERTIES TIMEOUT 60)
