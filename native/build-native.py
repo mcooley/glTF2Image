@@ -1,4 +1,4 @@
-# On Ubuntu 24.04, install these packages from the Ubuntu repositories:
+# On Ubuntu 24.04 (x64 or arm64), install these packages from the Ubuntu repositories:
 # cmake
 # clang-18, libc++-18-dev, libc++abi-18-dev
 # ninja-build
@@ -10,6 +10,7 @@
 
 import glob
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -51,20 +52,27 @@ if os.name == 'nt':
 else:
     build_os = 'linux'
 
+host_machine = platform.machine().lower()
+if host_machine in ('x86_64', 'amd64'):
+    build_arch = 'x64'
+elif host_machine in ('aarch64', 'arm64'):
+    build_arch = 'arm64'
+else:
+    sys.exit(f'Unsupported host architecture: {platform.machine()}')
+
 is_debug = False
 if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
     is_debug = True
 
-if build_os == 'win':
-    if is_debug:
-        build_variant = 'win-x64-debug'
-    else:
-        build_variant = 'win-x64'
+build_variant = f'{build_os}-{build_arch}'
+if is_debug:
+    build_variant += '-debug'
+
+# SwiftShader's Subzero JIT backend has no AArch64 target, so arm64 builds use the bundled LLVM backend instead.
+if build_arch == 'x64':
+    swiftshader_reactor_backend = 'Subzero'
 else:
-    if is_debug:
-        build_variant = 'linux-x64-debug'
-    else:
-        build_variant = 'linux-x64'
+    swiftshader_reactor_backend = 'LLVM'
 
 if is_debug:
     build_type = 'Debug'
@@ -105,7 +113,7 @@ subprocess.run(['cmake', '../..',
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
-    '-DREACTOR_BACKEND=Subzero'], check=True)
+    f'-DREACTOR_BACKEND={swiftshader_reactor_backend}'], check=True)
 subprocess.run(['ninja'], check=True)
 if build_os == 'linux' and not is_debug:
     split_debug_symbols('libvk_swiftshader.so')
