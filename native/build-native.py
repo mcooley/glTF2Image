@@ -1,8 +1,8 @@
-# On Ubuntu 22.04, make sure the following are installed:
+# On Ubuntu 24.04, install these packages from the Ubuntu repositories:
 # cmake
-# clang-18, libc++-18-dev, libc++abi-18-dev (from apt.llvm.org)
+# clang-18, libc++-18-dev, libc++abi-18-dev
 # ninja-build
-# Set CC and CXX if clang and clang++ do not refer to this toolchain.
+# Set CC=/usr/bin/clang-18 and CXX=/usr/bin/clang++-18 if the unversioned tools differ.
 
 # On Windows, run from "x64 Native Tools Command Prompt for VS 2022"
 

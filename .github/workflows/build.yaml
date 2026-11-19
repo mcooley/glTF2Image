@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-22.04]
+        os: [windows-latest, ubuntu-24.04]
         build_type: [release, debug]
     steps:
     - uses: actions/checkout@v4
@@ -41,9 +41,6 @@ jobs:
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
-        # Build on Jammy to retain the package's glibc baseline, with the newer libc++ Filament requires.
-        curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /usr/share/keyrings/apt.llvm.org.asc >/dev/null
-        echo 'deb [signed-by=/usr/share/keyrings/apt.llvm.org.asc] https://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main' | sudo tee /etc/apt/sources.list.d/llvm-18.list
         sudo apt-get update
         sudo apt-get install -y cmake clang-18 libc++-18-dev libc++abi-18-dev ninja-build
         echo 'CC=/usr/bin/clang-18' >> "$GITHUB_ENV"
@@ -64,7 +61,7 @@ jobs:
 
   package:
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -81,10 +78,10 @@ jobs:
         name: build-windows-latest-release
         path: native/out
 
-    - name: Download build artifacts (ubuntu-22.04-release)
+    - name: Download build artifacts (ubuntu-24.04-release)
       uses: actions/download-artifact@v4
       with:
-        name: build-ubuntu-22.04-release
+        name: build-ubuntu-24.04-release
         path: native/out
 
     - name: Extract version from tag

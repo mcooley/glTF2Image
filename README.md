@@ -39,5 +39,5 @@ Filament has good support for many glTF features and extensions. There are a sma
 
 ## Requirements
 - .NET 8 or later
-- Windows or Linux
+- Windows or Linux (the Linux NuGet binaries require glibc 2.38 or newer)
 - x64
