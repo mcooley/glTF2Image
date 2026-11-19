@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-2022, ubuntu-22.04]
+        os: [windows-2022, ubuntu-24.04]
         build_type: [release, debug]
     steps:
     - uses: actions/checkout@v4
@@ -43,7 +43,11 @@ jobs:
 
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y cmake clang libc++-14-dev libc++abi-14-dev ninja-build
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake clang-18 libc++-18-dev libc++abi-18-dev ninja-build
+        echo 'CC=/usr/bin/clang-18' >> "$GITHUB_ENV"
+        echo 'CXX=/usr/bin/clang++-18' >> "$GITHUB_ENV"
 
     - name: Run native/build-native.py
       run: python native/build-native.py ${{ matrix.build_type }}
@@ -60,7 +64,7 @@ jobs:
 
   package:
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -77,10 +81,10 @@ jobs:
         name: build-windows-2022-release
         path: native/out
 
-    - name: Download build artifacts (ubuntu-22.04-release)
+    - name: Download build artifacts (ubuntu-24.04-release)
       uses: actions/download-artifact@v4
       with:
-        name: build-ubuntu-22.04-release
+        name: build-ubuntu-24.04-release
         path: native/out
 
     - name: Extract version from tag
