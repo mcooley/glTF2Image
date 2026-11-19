@@ -5,7 +5,7 @@
 # libc++abi-14-dev
 # ninja-build
 
-# On Windows, run from "x64 Native Tools Command Prompt for VS 2022"
+# On Windows, select the x64 MSVC toolset as described in README.md.
 
 import glob
 import os
