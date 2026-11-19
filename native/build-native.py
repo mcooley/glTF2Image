@@ -10,6 +10,7 @@
 
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -71,9 +72,16 @@ else:
     build_type = 'RelWithDebInfo'
 
 if build_os == 'linux':
-    print('Using Clang...')
-    os.environ.setdefault("CC", '/usr/bin/clang')
-    os.environ.setdefault("CXX", '/usr/bin/clang++')
+    for variable, example in [('CC', '/usr/bin/clang-18'), ('CXX', '/usr/bin/clang++-18')]:
+        compiler = os.environ.get(variable)
+        if not compiler:
+            sys.exit(f'Set {variable} to a Clang 18 compiler executable (for example, {example}).')
+        try:
+            version = subprocess.run([compiler, '--version'], check=True, capture_output=True, text=True)
+        except (OSError, subprocess.CalledProcessError) as error:
+            sys.exit(f'Could not verify {variable}={compiler!r}: {error}')
+        if not re.search(r'\bclang version 18\.', version.stdout):
+            sys.exit(f'{variable}={compiler!r} is not Clang 18 (expected, for example, {example}).')
 
 native_dir = os.path.dirname(os.path.realpath(__file__))
 native_out_dir = native_dir + '/out/' + build_variant
