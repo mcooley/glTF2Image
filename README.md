@@ -18,9 +18,9 @@ int height = 324;
 var data = await renderer.RenderAsync(576, 324, new[] { model, lightsAndCamera });
 
 // We currently have a pixel buffer in RGBA format. Use your favorite library to encode this as a PNG.
-// For this example, we'll use ImageSharp.
-var image = Image.LoadPixelData<Rgba32>(data, width, height);
-await image.SaveAsPngAsync("avocado.png");
+// For this example, we'll use PngSharp.
+var image = Png.CreateRgba(width, height, data.ToArray());
+Png.EncodeToFile(image, "avocado.png");
 ```
 
 Result:
@@ -38,6 +38,6 @@ Filament has good support for many glTF features and extensions. There are a sma
 - Only one directional light is [supported](https://github.com/google/filament/blob/c93aa4c90df7a814a076ebc8d92cc94d4fa96910/filament/include/filament/LightManager.h#L89)
 
 ## Requirements
-- .NET 8 or later
+- .NET 10 or later
 - Windows or Linux
 - x64

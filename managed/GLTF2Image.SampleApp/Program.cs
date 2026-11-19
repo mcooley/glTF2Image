@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using PngSharp.Api;
 
 namespace GLTF2Image.SampleApp
 {
@@ -28,9 +27,9 @@ namespace GLTF2Image.SampleApp
             var data = await renderer.RenderAsync(576, 324, new[] { model, lightsAndCamera });
 
             // We currently have a pixel buffer in RGBA format. Use your favorite library to encode this as a PNG.
-            // For this example, we'll use ImageSharp.
-            var image = Image.LoadPixelData<Rgba32>(data.Span, width, height);
-            await image.SaveAsPngAsync("avocado.png");
+            // For this example, we'll use PngSharp.
+            var image = Png.CreateRgba(width, height, data.ToArray());
+            Png.EncodeToFile(image, "avocado.png");
         }
     }
 }
