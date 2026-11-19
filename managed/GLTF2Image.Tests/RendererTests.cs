@@ -2,9 +2,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -35,6 +37,64 @@ namespace GLTF2Image.Tests
             await Assert.ThrowsAsync<InvalidSceneException>(async () => await loadAndRender(Array.Empty<byte>()));
             await Assert.ThrowsAsync<InvalidSceneException>(async () => await loadAndRender(Encoding.UTF8.GetBytes(@"not json")));
             await Assert.ThrowsAsync<InvalidSceneException>(async () => await loadAndRender(Encoding.UTF8.GetBytes(@"{ ""invalid"": ""format"" }")));
+        }
+
+        [Fact]
+        public async Task RenderAsync_AssetCleanupThrows_PropagatesOriginalException()
+        {
+            using var renderer = await Renderer.CreateAsync();
+            using var camera = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")));
+            var failure = new InvalidOperationException("Synthetic asset cleanup failure");
+            var assets = new CleanupFailingAssetList(camera, failure);
+            var context = new NonPumpingContext();
+
+            Task<Memory<byte>> render;
+            var previousContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(context);
+                render = renderer.RenderAsync(100, 100, assets);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+
+            // Detect a dependency on pumping the caller's context without racing the
+            // readback success against the cleanup error or executing either posted callback.
+            var first = await Task.WhenAny(render, context.Posted.Task).WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.Same(render, first);
+            Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => render));
+        }
+
+        private sealed class NonPumpingContext : SynchronizationContext
+        {
+            public TaskCompletionSource Posted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public override void Post(SendOrPostCallback d, object? state) => Posted.TrySetResult();
+        }
+
+        private sealed class CleanupFailingAssetList(GLTFAsset asset, Exception failure)
+            : ReadOnlyCollection<GLTFAsset>(new[] { asset }), IList<GLTFAsset>
+        {
+            private int _reads;
+
+            GLTFAsset IList<GLTFAsset>.this[int index]
+            {
+                get
+                {
+                    // For a new asset: four reads to load and collect its handle, then
+                    // one each to increment and decrement the pending-render count.
+                    // Throw on the destruction pass so the asset can still be disposed.
+                    if (++_reads == 7)
+                    {
+                        throw failure;
+                    }
+
+                    return this[index];
+                }
+                set => throw new NotSupportedException();
+            }
         }
 
         [Fact]

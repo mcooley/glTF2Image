@@ -166,11 +166,12 @@ namespace GLTF2Image
                         catch (Exception ex)
                         {
                             _callback.SetException(ex);
+                            return;
                         }
+
+                        _callback.SetResult(_result);
                     },
                     highPriority: true); // Jump ahead of other rendering tasks to free GPU/CPU resources promptly.
-
-                _callback.SetResult(_result);
             }
 
             private static int GetRequiredResultLength(uint width, uint height)
