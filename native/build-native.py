@@ -4,9 +4,10 @@
 # ninja-build
 # Run with CC=/usr/bin/clang-18 CXX=/usr/bin/clang++-18.
 
-# On Windows, install the VS 2022 v143 14.44 x64/x86 build tools.
-# In a fresh Command Prompt, run vcvars64.bat -vcvars_ver=14.44 from the VS installation's
-# VC\Auxiliary\Build directory, then run this script. cl should report 19.44 for x64.
+# On Windows, install the VS 2022 v143 14.44 build tools for the host architecture (x64/x86 or ARM64).
+# In a fresh Command Prompt, run vcvars64.bat -vcvars_ver=14.44 (x64) or vcvarsarm64.bat -vcvars_ver=14.44
+# (arm64) from the VS installation's VC\Auxiliary\Build directory, then run this script. cl should report
+# 19.44 for the host architecture.
 
 import glob
 import os
@@ -59,6 +60,12 @@ elif host_machine in ('aarch64', 'arm64'):
     build_arch = 'arm64'
 else:
     sys.exit(f'Unsupported host architecture: {platform.machine()}')
+
+if build_os == 'win':
+    msvc_target_arch = os.environ.get('VSCMD_ARG_TGT_ARCH')
+    if msvc_target_arch and msvc_target_arch.lower() != build_arch:
+        sys.exit(f'The MSVC environment targets {msvc_target_arch}, but the host architecture is {build_arch}. '
+                 f'Initialize the MSVC environment for {build_arch} before running this script.')
 
 is_debug = False
 if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
