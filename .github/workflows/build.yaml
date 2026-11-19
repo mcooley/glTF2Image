@@ -16,17 +16,17 @@ jobs:
         os: [windows-2022, ubuntu-24.04]
         build_type: [release, debug]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         submodules: 'true'
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: '3.x'
 
     - name: Set up .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: '10.x'
 
@@ -35,7 +35,7 @@ jobs:
       run: choco install ninja
 
     - name: Configure MSVC build environment (Windows)
-      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # Pinned to 1.13.0
+      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
       if: runner.os == 'Windows'
       with:
         vsversion: '2022'
@@ -53,7 +53,7 @@ jobs:
       run: python native/build-native.py ${{ matrix.build_type }}
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: build-${{ matrix.os }}-${{ matrix.build_type }}
         path: |
@@ -68,21 +68,21 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: '10.x'
 
     - name: Download build artifacts (windows-2022-release)
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: build-windows-2022-release
         path: native/out
 
     - name: Download build artifacts (ubuntu-24.04-release)
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: build-ubuntu-24.04-release
         path: native/out
@@ -104,7 +104,7 @@ jobs:
       run: dotnet build -c Release managed/GLTF2Image/GLTF2Image.csproj /p:Version=${{ steps.extract_version.outputs.version || steps.default_version.outputs.version }} /p:GLTF2ImageRequireAllPlatforms=true
 
     - name: Upload NuGet package to build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: nuget-package
         path: managed/GLTF2Image/bin/Release/*.nupkg
