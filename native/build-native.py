@@ -4,7 +4,8 @@
 # ninja-build
 # Run with CC=/usr/bin/clang-18 CXX=/usr/bin/clang++-18.
 
-# On Windows, install the VS 2022 v143 14.44 build tools for the host architecture (x64/x86 or ARM64).
+# On Windows, install the MSVC v143 14.44 build tools for the host architecture (x64/x86 or ARM64), either from
+# VS 2022 or as the v14.44 component of a newer VS.
 # In a fresh Command Prompt, run vcvars64.bat -vcvars_ver=14.44 (x64) or vcvarsarm64.bat -vcvars_ver=14.44
 # (arm64) from the VS installation's VC\Auxiliary\Build directory, then run this script. cl should report
 # 19.44 for the host architecture.
