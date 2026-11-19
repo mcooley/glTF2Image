@@ -115,7 +115,6 @@ print('Building Filament...')
 filament_dir = native_dir + '/filament'
 os.chdir(filament_dir)
 apply_patch('../filament_patches/0001-use-swiftshader-relative-path.patch')
-apply_patch('../filament_patches/0002-fix-backend-tests-for-vulkan-only-build.patch')
 filament_build_dir = filament_dir + '/out/' + build_variant
 ensure_directory_exists(filament_build_dir)
 os.chdir(filament_build_dir)
@@ -127,6 +126,7 @@ subprocess.run(['cmake', '../..',
     '-DFILAMENT_SUPPORTS_METAL=OFF',
     '-DFILAMENT_SUPPORTS_XCB=OFF',
     '-DFILAMENT_SUPPORTS_XLIB=OFF',
+    '-DFILAMENT_BUILD_TESTING=OFF',
     '-DFILAMENT_SKIP_SAMPLES=ON',
     '-DFILAMENT_SKIP_SDL2=ON',
     '-DFILAMENT_ENABLE_MATDBG=OFF',
