@@ -5,7 +5,9 @@
 # libc++abi-14-dev
 # ninja-build
 
-# On Windows, run from "x64 Native Tools Command Prompt for VS 2022"
+# On Windows, install the VS 2022 v143 14.44 x64/x86 build tools.
+# In a fresh Command Prompt, run vcvars64.bat -vcvars_ver=14.44 from the VS installation's
+# VC\Auxiliary\Build directory, then run this script. cl should report 19.44 for x64.
 
 import glob
 import os
