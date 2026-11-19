@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="GLTF2Image.SampleApp/GLTF2Image.SampleApp.csproj" />
+  <Project Path="GLTF2Image.Tests/GLTF2Image.Tests.csproj" />
+  <Project Path="GLTF2Image/GLTF2Image.csproj" />
+</Solution>
