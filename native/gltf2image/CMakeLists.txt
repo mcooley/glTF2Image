@@ -1,21 +1,30 @@
 cmake_minimum_required(VERSION 3.19)
 project(gltf2image_native)
 
-if(MSVC)
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(FILAMENT_ROOT ${CMAKE_CURRENT_LIST_DIR}/../filament/out/win-x64-debug/sdk)
-    else()
-        set(FILAMENT_ROOT ${CMAKE_CURRENT_LIST_DIR}/../filament/out/win-x64/sdk)
-    endif()
+# Mirror Filament's DIST_ARCH: it installs libraries under lib/<lowercased host processor>, with amd64 renamed to x86_64.
+string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" FILAMENT_DIST_ARCH)
+string(REPLACE "amd64" "x86_64" FILAMENT_DIST_ARCH "${FILAMENT_DIST_ARCH}")
+
+if(FILAMENT_DIST_ARCH STREQUAL "x86_64")
+    set(GLTF2IMAGE_ARCH x64)
+elseif(FILAMENT_DIST_ARCH STREQUAL "aarch64" OR FILAMENT_DIST_ARCH STREQUAL "arm64")
+    set(GLTF2IMAGE_ARCH arm64)
 else()
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(FILAMENT_ROOT ${CMAKE_CURRENT_LIST_DIR}/../filament/out/linux-x64-debug/sdk)
-    else()
-        set(FILAMENT_ROOT ${CMAKE_CURRENT_LIST_DIR}/../filament/out/linux-x64/sdk)
-    endif()
+    message(FATAL_ERROR "Unsupported host architecture: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 endif()
 
-set(FILAMENT_LIBS_DIR ${FILAMENT_ROOT}/lib/x86_64/)
+if(MSVC)
+    set(GLTF2IMAGE_BUILD_VARIANT win-${GLTF2IMAGE_ARCH})
+else()
+    set(GLTF2IMAGE_BUILD_VARIANT linux-${GLTF2IMAGE_ARCH})
+endif()
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(GLTF2IMAGE_BUILD_VARIANT ${GLTF2IMAGE_BUILD_VARIANT}-debug)
+endif()
+
+set(FILAMENT_ROOT ${CMAKE_CURRENT_LIST_DIR}/../filament/out/${GLTF2IMAGE_BUILD_VARIANT}/sdk)
+set(FILAMENT_LIBS_DIR ${FILAMENT_ROOT}/lib/${FILAMENT_DIST_ARCH}/)
 set(FILAMENT_INCLUDE_DIR ${FILAMENT_ROOT}/include)
 
 set(CMAKE_CXX_EXTENSIONS OFF)

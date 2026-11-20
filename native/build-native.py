@@ -1,15 +1,18 @@
-# On Ubuntu 24.04, install these packages from the Ubuntu repositories:
+# On Ubuntu 24.04 (x64 or arm64), install these packages from the Ubuntu repositories:
 # cmake
 # clang-18, libc++-18-dev, libc++abi-18-dev
 # ninja-build
 # Run with CC=/usr/bin/clang-18 CXX=/usr/bin/clang++-18.
 
-# On Windows, install the VS 2022 v143 14.44 x64/x86 build tools.
-# In a fresh Command Prompt, run vcvars64.bat -vcvars_ver=14.44 from the VS installation's
-# VC\Auxiliary\Build directory, then run this script. cl should report 19.44 for x64.
+# On Windows, install the MSVC v143 14.44 build tools for the host architecture (x64/x86 or ARM64), either from
+# VS 2022 or as the v14.44 component of a newer VS.
+# In a fresh Command Prompt, run vcvars64.bat -vcvars_ver=14.44 (x64) or vcvarsarm64.bat -vcvars_ver=14.44
+# (arm64) from the VS installation's VC\Auxiliary\Build directory, then run this script. cl should report
+# 19.44 for the host architecture.
 
 import glob
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -51,20 +54,33 @@ if os.name == 'nt':
 else:
     build_os = 'linux'
 
+host_machine = platform.machine().lower()
+if host_machine in ('x86_64', 'amd64'):
+    build_arch = 'x64'
+elif host_machine in ('aarch64', 'arm64'):
+    build_arch = 'arm64'
+else:
+    sys.exit(f'Unsupported host architecture: {platform.machine()}')
+
+if build_os == 'win':
+    msvc_target_arch = os.environ.get('VSCMD_ARG_TGT_ARCH')
+    if msvc_target_arch and msvc_target_arch.lower() != build_arch:
+        sys.exit(f'The MSVC environment targets {msvc_target_arch}, but the host architecture is {build_arch}. '
+                 f'Initialize the MSVC environment for {build_arch} before running this script.')
+
 is_debug = False
 if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
     is_debug = True
 
-if build_os == 'win':
-    if is_debug:
-        build_variant = 'win-x64-debug'
-    else:
-        build_variant = 'win-x64'
+build_variant = f'{build_os}-{build_arch}'
+if is_debug:
+    build_variant += '-debug'
+
+# SwiftShader's Subzero JIT backend has no AArch64 target, so arm64 builds use the bundled LLVM backend instead.
+if build_arch == 'x64':
+    swiftshader_reactor_backend = 'Subzero'
 else:
-    if is_debug:
-        build_variant = 'linux-x64-debug'
-    else:
-        build_variant = 'linux-x64'
+    swiftshader_reactor_backend = 'LLVM'
 
 if is_debug:
     build_type = 'Debug'
@@ -91,6 +107,7 @@ print('Building SwiftShader...')
 swiftshader_dir = native_dir + '/swiftshader'
 os.chdir(swiftshader_dir)
 apply_patch('../swiftshader_patches/0001-static-link-c-libraries.patch')
+apply_patch('../swiftshader_patches/0002-detect-windows-arm64.patch')
 swiftshader_build_dir = swiftshader_dir + '/out/' + build_variant
 ensure_directory_exists(swiftshader_build_dir)
 os.chdir(swiftshader_build_dir)
@@ -105,7 +122,7 @@ subprocess.run(['cmake', '../..',
     '-DSWIFTSHADER_BUILD_WSI_XCB=FALSE',
     '-DSWIFTSHADER_BUILD_WSI_WAYLAND=FALSE',
     '-DSWIFTSHADER_BUILD_TESTS=FALSE',
-    '-DREACTOR_BACKEND=Subzero'], check=True)
+    f'-DREACTOR_BACKEND={swiftshader_reactor_backend}'], check=True)
 subprocess.run(['ninja'], check=True)
 if build_os == 'linux' and not is_debug:
     split_debug_symbols('libvk_swiftshader.so')
