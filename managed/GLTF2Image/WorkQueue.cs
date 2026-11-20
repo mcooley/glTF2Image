@@ -27,43 +27,43 @@ namespace GLTF2Image
 
         public Task RunAsync(Action work, bool highPriority = false)
         {
-            CallbackContext<bool> callbackContext = new();
+            TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             Add(() =>
             {
                 try
                 {
                     work();
-                    callbackContext.SetResult(true);
+                    completion.SetResult();
                 }
                 catch (Exception e)
                 {
-                    callbackContext.SetException(e);
+                    completion.SetException(e);
                 }
             },
             highPriority);
 
-            return callbackContext.Task;
+            return completion.Task;
         }
 
         public Task<T> RunAsync<T>(Func<T> work, bool highPriority = false)
         {
-            CallbackContext<T> callbackContext = new();
+            TaskCompletionSource<T> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             Add(() =>
             {
                 try
                 {
-                    callbackContext.SetResult(work());
+                    completion.SetResult(work());
                 }
                 catch (Exception e)
                 {
-                    callbackContext.SetException(e);
+                    completion.SetException(e);
                 }
             },
             highPriority);
 
-            return callbackContext.Task;
+            return completion.Task;
         }
 
         public void Dispose()

@@ -2,9 +2,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -89,6 +91,58 @@ namespace GLTF2Image.Tests
             }
 
             await Task.WhenAll(tasks);
+        }
+
+        [Fact]
+        public async Task RenderAsync_BlockingContinuation_DoesNotStallAnotherRender()
+        {
+            await using var renderer = await Renderer.CreateAsync();
+            await using var camera = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")),
+                keepLoadedForMultipleRenders: true);
+            var timeout = TimeSpan.FromSeconds(10);
+            var allowSubmission = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var continuationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseContinuation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Hold submission until the continuation is registered on the incomplete render task.
+            var firstRender = renderer.RenderAsync(100, 100, new SubmissionGatedAssets(camera, allowSubmission.Task, timeout));
+            var continuation = firstRender.ContinueWith(_ =>
+            {
+                continuationStarted.SetResult();
+                releaseContinuation.Task.GetAwaiter().GetResult();
+            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+
+            Task? secondRender = null;
+            try
+            {
+                allowSubmission.SetResult();
+                await continuationStarted.Task.WaitAsync(timeout);
+                secondRender = renderer.RenderAsync(100, 100, new[] { camera });
+                await secondRender.WaitAsync(timeout);
+            }
+            finally
+            {
+                // Unblock the engine even if the second render times out, then drain before disposal.
+                releaseContinuation.SetResult();
+                await Task.WhenAll(firstRender, continuation, secondRender ?? Task.CompletedTask).WaitAsync(timeout);
+            }
+        }
+
+        private sealed class SubmissionGatedAssets(GLTFAsset asset, Task allowSubmission, TimeSpan timeout)
+            : ReadOnlyCollection<GLTFAsset>(new[] { asset }), IList<GLTFAsset>
+        {
+            int ICollection<GLTFAsset>.Count
+            {
+                get
+                {
+                    if (!allowSubmission.IsCompleted)
+                    {
+                        allowSubmission.WaitAsync(timeout).GetAwaiter().GetResult();
+                    }
+
+                    return Count;
+                }
+            }
         }
 
         [Fact]

@@ -86,9 +86,9 @@ namespace GLTF2Image
             private readonly IList<GLTFAsset> _assets;
             private readonly Memory<byte> _result;
             private MemoryHandle _pinnedResult;
-            private readonly CallbackContext<Memory<byte>> _callback = new();
+            private readonly TaskCompletionSource<Memory<byte>> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public Task<Memory<byte>> Task => _callback.Task;
+            public Task<Memory<byte>> Task => _completion.Task;
 
             public RenderResult(Renderer renderer, IList<GLTFAsset> assets, uint width, uint height)
             {
@@ -139,7 +139,7 @@ namespace GLTF2Image
 
             public void SetException(Exception exception)
             {
-                _callback.SetException(exception);
+                _completion.SetException(exception);
             }
 
             public void SetComplete(nint renderResources)
@@ -165,12 +165,13 @@ namespace GLTF2Image
                         }
                         catch (Exception ex)
                         {
-                            _callback.SetException(ex);
+                            _completion.SetException(ex);
+                            return;
                         }
+
+                        _completion.SetResult(_result);
                     },
                     highPriority: true); // Jump ahead of other rendering tasks to free GPU/CPU resources promptly.
-
-                _callback.SetResult(_result);
             }
 
             private static int GetRequiredResultLength(uint width, uint height)
