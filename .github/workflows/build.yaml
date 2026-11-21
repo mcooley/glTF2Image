@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-2025-vs2026, ubuntu-24.04]
+        os: [windows-2025-vs2026, windows-11-arm, ubuntu-24.04, ubuntu-24.04-arm]
         build_type: [release, debug]
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,6 +29,10 @@ jobs:
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: '10.x'
+
+    - name: Install Ninja (Windows)
+      if: runner.os == 'Windows'
+      run: choco install ninja
 
     - name: Build native libraries (Windows)
       if: runner.os == 'Windows'
@@ -82,10 +86,22 @@ jobs:
         name: build-windows-2025-vs2026-release
         path: native/out
 
+    - name: Download build artifacts (windows-11-arm-release)
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: build-windows-11-arm-release
+        path: native/out
+
     - name: Download build artifacts (ubuntu-24.04-release)
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: build-ubuntu-24.04-release
+        path: native/out
+
+    - name: Download build artifacts (ubuntu-24.04-arm-release)
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: build-ubuntu-24.04-arm-release
         path: native/out
 
     - name: Extract version from tag
