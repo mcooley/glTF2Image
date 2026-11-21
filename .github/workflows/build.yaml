@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-2022, ubuntu-24.04]
+        os: [windows-2025-vs2026, ubuntu-24.04]
         build_type: [release, debug]
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,7 +38,7 @@ jobs:
       uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
       if: runner.os == 'Windows'
       with:
-        vsversion: '2022'
+        # The runner image selects VS 2026; the action's vsversion filter misses 18.10+.
         toolset: '14.44'
 
     - name: Install dependencies (Linux)
@@ -75,10 +75,10 @@ jobs:
       with:
         dotnet-version: '10.x'
 
-    - name: Download build artifacts (windows-2022-release)
+    - name: Download build artifacts (windows-2025-vs2026-release)
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
-        name: build-windows-2022-release
+        name: build-windows-2025-vs2026-release
         path: native/out
 
     - name: Download build artifacts (ubuntu-24.04-release)
