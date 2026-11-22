@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -91,6 +92,35 @@ namespace GLTF2Image.Tests
             }
 
             await Task.WhenAll(tasks);
+        }
+
+        [Fact]
+        public async Task RenderAsync_RepeatedModelLoadsKeepRendering()
+        {
+            // Reload a small model until we've used more than Filament's 17-bit entity index space, to validate that engine gc is happening.
+            const int nodesPerModel = 16;
+            const int renderCount = 10_000;
+            var gltf = JsonNode.Parse(File.ReadAllText(Path.Join(TestDataPath, "red_triangle_unlit.gltf")))!;
+            var nodes = gltf["nodes"]!.AsArray();
+            var roots = gltf["scenes"]![0]!["nodes"]!.AsArray();
+            while (nodes.Count < nodesPerModel)
+            {
+                roots.Add(nodes.Count);
+                nodes.Add(new JsonObject());
+            }
+            var modelData = Encoding.UTF8.GetBytes(gltf.ToJsonString());
+
+            await using var renderer = await Renderer.CreateAsync();
+            await using var camera = renderer.CreateGLTFAsset(File.ReadAllBytes(Path.Join(TestDataPath, "orthographic_camera.gltf")),
+                keepLoadedForMultipleRenders: true);
+            for (int frame = 1; frame <= renderCount; frame++)
+            {
+                await using var model = renderer.CreateGLTFAsset(modelData);
+                var pixels = await renderer.RenderAsync(32, 32, new[] { camera, model });
+                var color = GetPixelColor(pixels.Span, 32, 32, 19, 13);
+                Assert.True(color.R >= 200 && color.G < 64 && color.B < 64 && color.A >= 240,
+                    $"Frame {frame}: expected a red triangle, got {color}.");
+            }
         }
 
         [Fact]

@@ -129,6 +129,9 @@ void RenderManager::render(
         throw MissingCallbackArgumentException();
     }
 
+    // Standalone views have no endFrame() to recycle entity IDs from previous renders.
+    mEngine->gc();
+
     if (output.size() != backend::PixelBufferDescriptor::computeDataSize(
         backend::PixelDataFormat::RGBA,
         backend::PixelDataType::UBYTE,
