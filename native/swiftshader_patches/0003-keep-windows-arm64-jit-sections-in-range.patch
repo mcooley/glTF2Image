@@ -1,0 +1,191 @@
+From 20ff3a2627313b53a67395489a60e0d49a7d5be6 Mon Sep 17 00:00:00 2001
+From: Matt Cooley <matt@mattcooley.net>
+Date: Sun, 22 Nov 2026 12:51:20 -0800
+Subject: [PATCH] Keep Windows ARM64 Reactor JIT sections in range
+
+The Windows AArch64 small code model uses ADRP to address shader constants. RuntimeDyld cannot encode the displacement when separately allocated sections land outside the instruction range.
+
+Reserve one allocation per COFF object and keep page-aligned code, read-only data and writable data groups in it. Reject layouts outside ADRP range and retain separate page permissions.
+
+Tested on Windows ARM64 with bundled LLVM 10: 48 full glTF2Image runs (576 tests), no crashes; ReactorUnitTests passed 155 of 156, with the same RoundInt failure on the unpatched build. The changed source also compiles against bundled LLVM 16.
+
+Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>
+---
+ src/Reactor/LLVMJIT.cpp | 147 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 146 insertions(+), 1 deletion(-)
+
+diff --git a/src/Reactor/LLVMJIT.cpp b/src/Reactor/LLVMJIT.cpp
+index 6db6ca1..5b8666f 100644
+--- a/src/Reactor/LLVMJIT.cpp
++++ b/src/Reactor/LLVMJIT.cpp
+@@ -47,6 +47,8 @@ __pragma(warning(push))
+ #include "llvm/IR/DiagnosticInfo.h"
+ #include "llvm/IR/Verifier.h"
+ #include "llvm/Support/CommandLine.h"
++#include "llvm/Support/ErrorHandling.h"
++#include "llvm/Support/MathExtras.h"
+ #if LLVM_VERSION_MAJOR >= 18
+ #include "llvm/TargetParser/Host.h"
+ #else
+@@ -339,6 +341,143 @@ LLVMOptLevel JITGlobals::toLLVM(int level)
+ #undef CodeGenOptLevel
+ }
+ 
++#if defined(_WIN32) && (defined(_M_ARM64) || defined(__aarch64__))
++// Windows AArch64 uses the small code model. RuntimeDyld's COFF linker
++// assumes that ADRP can reach an object's data from its code (within 4 GiB).
++// Reserve all three section groups together rather than relying on address hints.
++class AArch64COFFMemoryManager final : public llvm::RTDyldMemoryManager
++{
++#	if LLVM_VERSION_MAJOR >= 16
++	using Alignment = llvm::Align;
++	static uintptr_t alignmentValue(Alignment alignment) { return alignment.value(); }
++#	else
++	using Alignment = uint32_t;
++	static uintptr_t alignmentValue(Alignment alignment) { return alignment; }
++#	endif
++
++public:
++	~AArch64COFFMemoryManager() override
++	{
++		deregisterEHFrames();
++		if(memory)
++		{
++			rr::deallocateMemoryPages(memory, memorySize);
++		}
++	}
++
++	bool needsToReserveAllocationSpace() override { return true; }
++
++	void reserveAllocationSpace(uintptr_t codeSize, Alignment codeAlignment,
++	                            uintptr_t readOnlySize, Alignment readOnlyAlignment,
++	                            uintptr_t writableSize, Alignment writableAlignment) override
++	{
++		constexpr uintptr_t maxSpan = uintptr_t{ 1 } << 32;
++		const uintptr_t pageSize = rr::memoryPageSize();
++		const uintptr_t codeAlign = std::max(pageSize, alignmentValue(codeAlignment));
++		const uintptr_t readOnlyAlign = std::max(pageSize, alignmentValue(readOnlyAlignment));
++		const uintptr_t writableAlign = std::max(pageSize, alignmentValue(writableAlignment));
++		const uintptr_t alignment = std::max({ codeAlign, readOnlyAlign, writableAlign });
++		if(memory || alignment >= maxSpan || codeSize >= maxSpan ||
++		   readOnlySize >= maxSpan || writableSize >= maxSpan)
++		{
++			llvm::report_fatal_error("Invalid AArch64 COFF JIT section reservation");
++		}
++
++		// Separate protection groups by whole pages and leave room to align the
++		// start of the reservation even if a section requires a larger alignment.
++		const uintptr_t readOnlyOffset = llvm::alignTo(codeSize, readOnlyAlign);
++		const uintptr_t writableOffset = llvm::alignTo(readOnlyOffset + readOnlySize, writableAlign);
++		const uintptr_t endOffset = llvm::alignTo(writableOffset + writableSize, pageSize);
++		if(endOffset >= maxSpan)
++		{
++			llvm::report_fatal_error("AArch64 COFF JIT sections exceed ADRP range");
++		}
++		memorySize = endOffset + alignment - pageSize;
++		if(memorySize == 0)
++		{
++			return;
++		}
++		memory = rr::allocateMemoryPages(memorySize, rr::PERMISSION_READ | rr::PERMISSION_WRITE, true);
++		if(!memory)
++		{
++			llvm::report_fatal_error("Unable to reserve AArch64 COFF JIT section memory");
++		}
++		const uintptr_t base = llvm::alignTo(reinterpret_cast<uintptr_t>(memory), alignment);
++		code = { base, base + readOnlyOffset };
++		readOnly = { base + readOnlyOffset, base + writableOffset };
++		writable = { base + writableOffset, base + endOffset };
++	}
++
++	uint8_t *allocateCodeSection(uintptr_t size, unsigned alignment, unsigned, llvm::StringRef) override
++	{
++		return code.allocate(size, alignment);
++	}
++
++	uint8_t *allocateDataSection(uintptr_t size, unsigned alignment, unsigned, llvm::StringRef, bool isReadOnly) override
++	{
++		return (isReadOnly ? readOnly : writable).allocate(size, alignment);
++	}
++
++	bool finalizeMemory(std::string *error) override
++	{
++		using Memory = llvm::sys::Memory;
++		if(auto ec = code.protect(Memory::MF_READ | Memory::MF_EXEC))
++		{
++			if(error)
++			{
++				*error = ec.message();
++			}
++			return true;
++		}
++		if(auto ec = readOnly.protect(Memory::MF_READ))
++		{
++			if(error)
++			{
++				*error = ec.message();
++			}
++			return true;
++		}
++		Memory::InvalidateInstructionCache(reinterpret_cast<const void *>(code.start), code.next - code.start);
++		return false;
++	}
++
++private:
++	struct SectionGroup
++	{
++		uintptr_t start = 0;
++		uintptr_t end = 0;
++		uintptr_t next = start;
++
++		uint8_t *allocate(uintptr_t size, unsigned alignment)
++		{
++			const uintptr_t address = llvm::alignTo(next, std::max(1u, alignment));
++			if(!address || address > end || size > end - address)
++			{
++				return nullptr;
++			}
++			next = address + size;
++			return reinterpret_cast<uint8_t *>(address);
++		}
++
++		std::error_code protect(unsigned flags) const
++		{
++			if(start == end)
++			{
++				return {};
++			}
++			return llvm::sys::Memory::protectMappedMemory(
++			    llvm::sys::MemoryBlock(reinterpret_cast<void *>(start), end - start), flags);
++		}
++	};
++
++	void *memory = nullptr;
++	uintptr_t memorySize = 0;
++	SectionGroup code;
++	SectionGroup readOnly;
++	SectionGroup writable;
++};
++#endif
++
+ class MemoryMapper final : public llvm::SectionMemoryManager::MemoryMapper
+ {
+ public:
+@@ -808,7 +947,13 @@ public:
+ 	    , session(std::move(Unwrap(llvm::orc::SelfExecutorProcessControl::Create())))
+ #endif
+ #if USE_LEGACY_OBJECT_LINKING_LAYER
+-	    , objectLayer(session, [this]() {
++	    , objectLayer(session, [this]() -> std::unique_ptr<llvm::RuntimeDyld::MemoryManager> {
++#	if defined(_WIN32) && (defined(_M_ARM64) || defined(__aarch64__))
++		    if(JITGlobals::get()->getTargetTriple().isOSBinFormatCOFF())
++		    {
++			    return std::make_unique<AArch64COFFMemoryManager>();
++		    }
++#	endif
+ 		    return std::make_unique<llvm::SectionMemoryManager>(&memoryMapper);
+ 	    })
+ #else
+-- 
+2.56.1.windows.1
+
